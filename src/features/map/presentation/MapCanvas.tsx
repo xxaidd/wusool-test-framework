@@ -1,0 +1,272 @@
+"use client";
+
+import L from "leaflet";
+import { useEffect, useRef, useState } from "react";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
+import { SessionSource } from "@/features/sessions/domain/session.types";
+import { Button } from "@/shared/components/Button";
+import { useI18n } from "@/shared/i18n";
+import { actorColors, tokens } from "@/shared/lib/tokens";
+import { useActorStore } from "@/shared/store/actor.store";
+import { useSessionStore } from "@/shared/store/session.store";
+
+const ICONS: Record<string, string> = {
+  passenger: "🧍",
+  driver: "🧑‍✈️",
+  bus: "🚌",
+};
+
+function markerIcon(type: string) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="actor-marker" style="width:30px;height:30px;background:${actorColors[type] || tokens.primary}">${ICONS[type] || "•"}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
+function MapBridge({ onReady }: { onReady: (map: L.Map) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    onReady(map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, onReady]);
+  return null;
+}
+
+const DEFAULT_CENTER: [number, number] = [24.7136, 46.6753]; // Riyadh
+
+export function MapCanvas() {
+  const { t } = useI18n();
+  const workspace = useActorStore((s) => s.workspace);
+  const placed = useActorStore((s) => s.placed);
+  const placeActor = useActorStore((s) => s.placeActor);
+  const moveActor = useActorStore((s) => s.moveActor);
+  const selectedActorId = useActorStore((s) => s.selectedActorId);
+  const addEvent = useSessionStore((s) => s.addEvent);
+
+  const mapRef = useRef<L.Map | null>(null);
+  const [route, setRoute] = useState<Array<[number, number]>>([]);
+  const [drawing, setDrawing] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [speed, setSpeed] = useState(400);
+  const [followActorId, setFollowActorId] = useState<string | null>(null);
+  const stepRef = useRef(0);
+
+  const selected = workspace.find((a) => a.id === selectedActorId);
+
+  const onDrop = (actorId: string, lat: number, lng: number) => {
+    placeActor(actorId, lat, lng);
+    addEvent({
+      source: SessionSource.System,
+      actorId,
+      actorLabel: workspace.find((a) => a.id === actorId)?.label || actorId,
+      actionId: "map.place",
+      actionLabel: t("map.placeActor"),
+      categoryId: "location",
+      summary: `${t("map.placementDone")}`,
+      status: "info",
+      position: { lat, lng },
+    });
+  };
+
+  const startDraw = () => {
+    setRoute([]);
+    setDrawing(true);
+    setFollowing(false);
+  };
+
+  const finishDraw = () => {
+    setDrawing(false);
+    if (route.length > 1 && selected) {
+      setFollowActorId(selected.id);
+    }
+  };
+
+  // Constant-speed automated movement along the drawn route.
+  useEffect(() => {
+    if (!following || !followActorId || route.length < 2) return;
+    stepRef.current = 0;
+    const timer = setInterval(() => {
+      stepRef.current += 1;
+      if (stepRef.current >= route.length) {
+        setFollowing(false);
+        addEvent({
+          source: SessionSource.Workflow,
+          actorId: followActorId,
+          actorLabel:
+            workspace.find((a) => a.id === followActorId)?.label ||
+            followActorId,
+          actionId: "map.follow",
+          actionLabel: t("map.followRoute"),
+          categoryId: "location",
+          summary: `${t("map.following")} (${route.length} pts)`,
+          status: "success",
+          position: {
+            lat: route[route.length - 1][0],
+            lng: route[route.length - 1][1],
+          },
+        });
+        return;
+      }
+      const [lat, lng] = route[stepRef.current];
+      moveActor(followActorId, lat, lng);
+    }, speed);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    following,
+    followActorId,
+    route,
+    speed,
+    addEvent,
+    moveActor,
+    t,
+    workspace.find,
+  ]);
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop target for placing actors on the map
+    <div
+      className="relative h-full w-full"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        const id = e.dataTransfer.getData("text/actor-id");
+        if (id && mapRef.current) {
+          const pt = mapRef.current.mouseEventToLatLng(
+            e as unknown as MouseEvent,
+          );
+          onDrop(id, pt.lat, pt.lng);
+        }
+      }}
+    >
+      <MapContainer
+        center={DEFAULT_CENTER}
+        zoom={12}
+        className="h-full w-full"
+        style={{ background: "var(--color-bg-base)" }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapBridge onReady={(m) => (mapRef.current = m)} />
+        {placed.map((p) => {
+          const actor = workspace.find((a) => a.id === p.actorId);
+          const type = actor?.type || "passenger";
+          const isSel = actor?.id === selectedActorId;
+          return (
+            <Marker
+              key={p.actorId}
+              position={[p.lat, p.lng]}
+              icon={markerIcon(type)}
+              draggable
+              eventHandlers={{
+                dragend: (e) => {
+                  const ll = (e.target as L.Marker).getLatLng();
+                  moveActor(p.actorId, ll.lat, ll.lng);
+                },
+              }}
+              zIndexOffset={isSel ? 1000 : 0}
+            />
+          );
+        })}
+        {route.length > 1 && (
+          <Polyline
+            positions={route}
+            pathOptions={{ color: tokens.tertiary, weight: 3 }}
+          />
+        )}
+      </MapContainer>
+
+      {/* Toolbar */}
+      <div className="absolute start-3 top-3 z-[500] flex flex-col gap-1.5 rounded-xl border border-border bg-surface/95 p-1.5 shadow-md backdrop-blur">
+        {!drawing ? (
+          <Button variant="subtle" size="sm" onClick={startDraw}>
+            ✏️ {t("map.startDrawing")}
+          </Button>
+        ) : (
+          <>
+            <Button size="sm" onClick={finishDraw} disabled={route.length < 2}>
+              ✔ {t("map.finishDrawing")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDrawing(false);
+                setRoute([]);
+              }}
+            >
+              ✕ {t("map.cancelDrawing")}
+            </Button>
+          </>
+        )}
+        {route.length > 1 && !drawing && (
+          <Button
+            variant={following ? "danger" : "secondary"}
+            size="sm"
+            onClick={() => {
+              if (following) {
+                setFollowing(false);
+              } else if (selected) {
+                setFollowActorId(selected.id);
+                setFollowing(true);
+              }
+            }}
+            disabled={!selected}
+          >
+            {following
+              ? `⏹ ${t("map.stopFollowing")}`
+              : `▶ ${t("map.followRoute")}`}
+          </Button>
+        )}
+      </div>
+
+      {/* Draw / follow hint */}
+      {drawing && (
+        <div className="absolute end-3 top-3 z-[500] rounded-lg border border-primary bg-primary-container px-3 py-1.5 text-xs font-medium text-on-primary-container shadow">
+          {t("map.drawing")} · {route.length}
+        </div>
+      )}
+      {following && followActorId && (
+        <div className="absolute end-3 top-3 z-[500] rounded-lg border border-success bg-success-container px-3 py-1.5 text-xs font-medium text-success shadow">
+          ▶ {t("map.following")}
+        </div>
+      )}
+
+      {/* Speed control for automated movement */}
+      {route.length > 1 && (
+        <div className="absolute bottom-3 start-3 z-[500] flex items-center gap-2 rounded-xl border border-border bg-surface/95 px-3 py-2 text-xs text-ink-soft shadow-md">
+          <span>{t("map.autoMove")}</span>
+          <input
+            type="number"
+            value={speed}
+            min={100}
+            max={5000}
+            step={100}
+            onChange={(e) => setSpeed(Number(e.target.value) || 400)}
+            className="h-8 w-20 rounded-md border border-border bg-surface-variant px-2 text-sm text-ink"
+            dir="ltr"
+          />
+          <span>{t("map.speed")}</span>
+        </div>
+      )}
+
+      {workspace.length === 0 && (
+        <div className="pointer-events-none absolute inset-0 z-[400] grid place-items-center">
+          <div className="rounded-2xl border border-dashed border-border bg-surface/80 px-6 py-4 text-center text-sm text-ink-soft">
+            {t("map.placeActor")}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

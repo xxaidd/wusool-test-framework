@@ -1,0 +1,243 @@
+"use client";
+
+import { useState } from "react";
+import type {
+  ActorRef,
+  ActorType as AT,
+} from "@/features/actors/domain/actor.types";
+import { ActorType } from "@/features/actors/domain/actor.types";
+import { discoverActors } from "@/features/actors/infrastructure/actorRepository";
+import { Badge } from "@/shared/components/Badge";
+import { Button } from "@/shared/components/Button";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { Input } from "@/shared/components/Input";
+import { Select } from "@/shared/components/Select";
+import { Spinner } from "@/shared/components/Spinner";
+import { useI18n } from "@/shared/i18n";
+import { useActorStore } from "@/shared/store/actor.store";
+import { useAuthStore } from "@/shared/store/auth.store";
+import { useEnvironmentStore } from "@/shared/store/environment.store";
+
+function actorIcon(t: AT) {
+  if (t === ActorType.Passenger) return "🧍";
+  if (t === ActorType.Driver) return "🧑‍✈️";
+  return "🚌";
+}
+
+export function ActorPanel({
+  onOpenCreate,
+  onRequestAuth,
+}: {
+  onOpenCreate: () => void;
+  onRequestAuth: (actor: ActorRef, onSuccess: () => void) => void;
+}) {
+  const { t } = useI18n();
+  const env = useEnvironmentStore((s) => s.env);
+  const adminToken = useEnvironmentStore((s) => s.adminToken);
+  const {
+    workspace,
+    discovered,
+    setDiscovered,
+    selectedActorId,
+    selectActor,
+    addToWorkspace,
+    removeFromWorkspace,
+    updateActor,
+    search,
+    setSearch,
+    typeFilter,
+    setTypeFilter,
+  } = useActorStore();
+  const getToken = useAuthStore((s) => s.getToken);
+
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState<string | undefined>();
+
+  const onDiscover = async () => {
+    setDiscovering(true);
+    setDiscoverError(undefined);
+    try {
+      const types: AT[] =
+        typeFilter === "all"
+          ? [ActorType.Passenger, ActorType.Driver, ActorType.Bus]
+          : [typeFilter];
+      const found = await discoverActors(env, adminToken, types);
+      setDiscovered(found);
+      if (found.length === 0) setDiscoverError("No actors found");
+    } catch (err) {
+      setDiscoverError(
+        err instanceof Error ? err.message : t("common.networkError"),
+      );
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const filteredWorkspace = workspace.filter((a) => {
+    const q = search.toLowerCase();
+    const matchQ =
+      !q ||
+      a.label.toLowerCase().includes(q) ||
+      (a.sublabel ?? "").toLowerCase().includes(q);
+    const matchT = typeFilter === "all" || a.type === typeFilter;
+    return matchQ && matchT;
+  });
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <h2 className="text-sm font-bold text-ink">{t("actor.title")}</h2>
+        <div className="flex gap-1.5">
+          <Button variant="subtle" size="sm" onClick={onDiscover}>
+            {t("actor.discoverBtn")}
+          </Button>
+          <Button size="sm" onClick={onOpenCreate}>
+            +
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2 border-b border-border p-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("actor.search")}
+        />
+        <Select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as AT | "all")}
+          options={[
+            { value: "all", label: t("actor.allTypes") },
+            { value: ActorType.Passenger, label: t("actor.passenger") },
+            { value: ActorType.Driver, label: t("actor.driver") },
+            { value: ActorType.Bus, label: t("actor.bus") },
+          ]}
+        />
+        {discovering && (
+          <div className="flex items-center gap-2 px-1 text-xs text-ink-soft">
+            <Spinner /> {t("actor.loading")}
+          </div>
+        )}
+        {discoverError && !discovering && (
+          <p className="px-1 text-xs text-danger">{discoverError}</p>
+        )}
+      </div>
+
+      {/* Discovered results */}
+      {discovered.length > 0 && (
+        <div className="max-h-44 overflow-y-auto border-b border-border scrollbar-thin">
+          <div className="px-3 py-1.5 text-[11px] font-semibold uppercase text-ink-faint">
+            {t("actor.discoverFromBackend")} · {discovered.length}{" "}
+            {t("actor.results")}
+          </div>
+          {discovered.map((a) => (
+            <div
+              key={a.id}
+              className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-surface-variant"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-lg">{actorIcon(a.type)}</span>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-ink">
+                    {a.label}
+                  </div>
+                  <div className="truncate text-xs text-ink-soft">
+                    {a.sublabel}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() => addToWorkspace(a)}
+              >
+                {t("actor.addToWorkspace")}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Workspace */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <div className="px-3 py-1.5 text-[11px] font-semibold uppercase text-ink-faint">
+          {t("actor.workspaceEmpty")}
+        </div>
+        {filteredWorkspace.length === 0 && (
+          <EmptyState
+            icon="🧩"
+            title={t("actor.workspaceEmpty")}
+            hint={t("actor.discoverHint")}
+          />
+        )}
+        {filteredWorkspace.map((a) => {
+          const authed = !!getToken(a.id) || a.authenticated;
+          const selected = a.id === selectedActorId;
+          return (
+            <button
+              key={a.id}
+              type="button"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/actor-id", a.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onClick={() => selectActor(selected ? null : a.id)}
+              className={`group mx-2 my-1 flex cursor-grab items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
+                selected
+                  ? "border-primary bg-primary-container"
+                  : "border-transparent bg-surface hover:border-border"
+              }`}
+              title={t("map.placeActor")}
+            >
+              <span className="text-lg">{actorIcon(a.type)}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-sm font-semibold text-ink">
+                    {a.label}
+                  </span>
+                  <Badge tone="neutral">{a.source}</Badge>
+                </div>
+                <div className="truncate text-xs text-ink-soft">
+                  {a.sublabel}
+                  {a.lat != null
+                    ? ` · ${a.lat.toFixed(4)}, ${a.lng?.toFixed(4)}`
+                    : ""}
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                {a.type !== ActorType.Bus && !authed && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRequestAuth(a, () =>
+                        updateActor(a.id, { authenticated: true }),
+                      );
+                    }}
+                    className="rounded-md px-1.5 py-1 text-xs text-info hover:bg-info-container"
+                    title={t("actor.authenticate")}
+                  >
+                    🔐
+                  </button>
+                )}
+                {authed && <Badge tone="success">✓</Badge>}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFromWorkspace(a.id);
+                  }}
+                  className="rounded-md px-1.5 py-1 text-xs text-danger hover:bg-danger-container"
+                  title={t("actor.remove")}
+                >
+                  ✕
+                </button>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
