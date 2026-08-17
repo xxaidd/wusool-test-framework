@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "audit:boundaries": "node scripts/audit-boundaries.mjs"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.22",

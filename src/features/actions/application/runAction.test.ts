@@ -4,7 +4,7 @@ import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 import { getAction } from "./actionCatalog";
-import type { ActionRepositoryResult } from "./actionRepository";
+import type { ActionResult } from "./actionRepository";
 import { runAction } from "./runAction";
 
 const env: BackendEnvironment = {
@@ -29,7 +29,7 @@ function mustGet(id: string) {
 }
 
 function repoReturning(
-  result: ActionRepositoryResult,
+  result: ActionResult,
   execute = vi.fn().mockResolvedValue(result),
 ) {
   return { execute };
@@ -37,7 +37,12 @@ function repoReturning(
 
 describe("runAction", () => {
   it("executes a successful action and shapes the outcome", async () => {
-    const repo = repoReturning({ ok: true, status: 201, data: { id: 42 } });
+    const repo = repoReturning({
+      status: "success",
+      statusCode: 201,
+      data: { id: 42 },
+      correlation: { traceId: "trace-1" },
+    });
     const outcome = await runAction({
       env,
       actor,
@@ -51,6 +56,7 @@ describe("runAction", () => {
     expect(outcome.needsAuth).toBe(false);
     expect(outcome.statusCode).toBe(201);
     expect(outcome.data).toEqual({ id: 42 });
+    expect(outcome.correlation).toEqual({ traceId: "trace-1" });
     expect(outcome.request.url).toBe(
       "http://localhost:5002/api/v1/bus-trips/42/start?id=42",
     );
@@ -74,13 +80,39 @@ describe("runAction", () => {
       action: mustGet("driver.startTrip"),
       args: { id: "42" },
       token: "secret-token",
-      repo: repoReturning({ ok: false, status: 500, error: "boom" }),
+      repo: repoReturning({
+        status: "failure",
+        classification: {
+          kind: "infrastructure",
+          subtype: "backend-unavailable",
+        },
+        statusCode: 500,
+        message: "boom",
+        correlation: {},
+      }),
     });
 
     expect(outcome.ok).toBe(false);
     expect(outcome.statusCode).toBe(500);
     expect(outcome.error).toBe("boom");
     expect(outcome.response?.body).toBe("boom");
+  });
+
+  it("surfaces a backend needs-auth result without treating it as a fatal error", async () => {
+    const repo = repoReturning({ status: "needs-auth", correlation: {} });
+    const outcome = await runAction({
+      env,
+      actor,
+      action: mustGet("driver.startTrip"),
+      args: { id: "42" },
+      token: "expired-token",
+      repo,
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.needsAuth).toBe(true);
+    expect(outcome.statusCode).toBe(401);
+    expect(repo.execute).toHaveBeenCalled();
   });
 
   it("returns needsAuth without calling the repository", async () => {
@@ -104,7 +136,12 @@ describe("runAction", () => {
       actor,
       action: mustGet("passenger.discoverTrips"),
       args: {},
-      repo: repoReturning({ ok: true, status: 200, data: [] }),
+      repo: repoReturning({
+        status: "success",
+        statusCode: 200,
+        data: [],
+        correlation: {},
+      }),
       position: { lat: 24.7, lng: 46.6 },
     });
     expect(outcome.position).toEqual({ lat: 24.7, lng: 46.6 });

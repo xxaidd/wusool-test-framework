@@ -28,34 +28,76 @@ describe("httpActionRepository", () => {
     mockedRequest.mockReset();
   });
 
-  it("returns an ok result on success", async () => {
+  it("returns a success result on success", async () => {
     mockedRequest.mockResolvedValue({ status: 201, data: { id: 1 } });
     const result = await httpActionRepository.execute({
       env,
       path: "/api/v1/thing",
       method: "GET",
     });
-    expect(result).toEqual({ ok: true, status: 201, data: { id: 1 } });
+    expect(result).toEqual({
+      status: "success",
+      statusCode: 201,
+      data: { id: 1 },
+      correlation: {},
+    });
   });
 
-  it("normalizes ApiError failures", async () => {
+  it("maps 401/403 ApiError failures to needs-auth", async () => {
+    mockedRequest.mockRejectedValue(new ApiError(401, "unauthorized"));
+    const result = await httpActionRepository.execute({
+      env,
+      path: "/api/v1/thing",
+      method: "GET",
+    });
+    expect(result).toEqual({ status: "needs-auth", correlation: {} });
+  });
+
+  it("classifies other ApiError failures", async () => {
     mockedRequest.mockRejectedValue(new ApiError(404, "not found"));
     const result = await httpActionRepository.execute({
       env,
       path: "/api/v1/thing",
       method: "GET",
     });
-    expect(result).toEqual({ ok: false, status: 404, error: "not found" });
+    expect(result).toMatchObject({
+      status: "failure",
+      classification: { kind: "business" },
+      statusCode: 404,
+      message: "not found",
+    });
   });
 
-  it("normalizes unknown failures to status 0", async () => {
+  it("classifies server errors as backend-unavailable", async () => {
+    mockedRequest.mockRejectedValue(new ApiError(500, "boom"));
+    const result = await httpActionRepository.execute({
+      env,
+      path: "/api/v1/thing",
+      method: "GET",
+    });
+    expect(result).toMatchObject({
+      status: "failure",
+      classification: {
+        kind: "infrastructure",
+        subtype: "backend-unavailable",
+      },
+      statusCode: 500,
+    });
+  });
+
+  it("classifies unknown failures to status 0 network failure", async () => {
     mockedRequest.mockRejectedValue(new Error("boom"));
     const result = await httpActionRepository.execute({
       env,
       path: "/api/v1/thing",
       method: "GET",
     });
-    expect(result).toEqual({ ok: false, status: 0, error: "boom" });
+    expect(result).toMatchObject({
+      status: "failure",
+      classification: { kind: "infrastructure", subtype: "network" },
+      statusCode: 0,
+      message: "boom",
+    });
   });
 
   it("forwards params, token and signal", async () => {
