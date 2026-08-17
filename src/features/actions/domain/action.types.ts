@@ -24,6 +24,8 @@ export enum ActionMode {
   Advanced = "advanced",
 }
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
 export interface ActionFieldOption {
   value: string;
   label: string;
@@ -54,7 +56,7 @@ export interface ActionDef {
   labelKey: string;
   category: ActionCategory;
   actorTypes: ActorType[];
-  method: string;
+  method: HttpMethod;
   /** path template; `{id}` and other `{fieldId}` are substituted from args */
   path: string;
   requiresAuth: boolean;

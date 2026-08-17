@@ -1,2 +1,11 @@
-export { isMovable, routeEnd, stepAlongRoute } from "./application/movement";
+export type {
+  RouteFollower,
+  RouteFollowerCallbacks,
+} from "./application/movement";
+export {
+  createRouteFollower,
+  isMovable,
+  routeEnd,
+  stepAlongRoute,
+} from "./application/movement";
 export * from "./domain/map.types";

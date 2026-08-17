@@ -6,6 +6,7 @@ import type {
   SessionEvent,
   SessionSource,
 } from "@/features/sessions/domain/session.types";
+import { browserSessionDownloader } from "@/features/sessions/infrastructure/sessionDownloader";
 
 export interface NewEvent {
   source: SessionSource;
@@ -70,6 +71,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   exportSession: () => {
     const s = get();
-    exportSessionUsecase({ events: s.events, startedAt: s.startedAt });
+    exportSessionUsecase({
+      events: s.events,
+      startedAt: s.startedAt,
+      download: browserSessionDownloader,
+    });
   },
 }));

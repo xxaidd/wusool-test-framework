@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   actionsForActor,
   buildBody,
@@ -18,6 +18,7 @@ import {
   ActionMode,
   type EntityKind,
 } from "@/features/actions/domain/action.types";
+import { httpActionRepository } from "@/features/actions/infrastructure/actionRepository";
 import { loadEntity } from "@/features/actions/infrastructure/entityRepository";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
@@ -73,6 +74,11 @@ export function ActionPanel({
   const [args, setArgs] = useState<Record<string, unknown>>({});
   const [result, setResult] = useState<ActionOutcome | null>(null);
   const [executing, setExecuting] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
 
   const actorActions = useMemo(
     () =>
@@ -113,15 +119,31 @@ export function ActionPanel({
     };
   }, [action, args, selected]);
 
+  const cancel = () => {
+    abortRef.current?.abort();
+  };
+
   const execute = async () => {
     if (!selected || !action) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setExecuting(true);
     setResult(null);
     const pos =
       selected.lat != null && selected.lng != null
         ? { lat: selected.lat, lng: selected.lng }
         : undefined;
-    const outcome = await runAction(env, selected, action, args, pos);
+    const token = getToken(selected.id) || selected.token;
+    const outcome = await runAction({
+      env,
+      actor: selected,
+      action,
+      args,
+      position: pos,
+      token,
+      repo: httpActionRepository,
+      signal: abortRef.current.signal,
+    });
     setResult(outcome);
     setExecuting(false);
 
@@ -349,9 +371,16 @@ export function ActionPanel({
               );
             })}
 
-            <Button full onClick={execute} disabled={executing}>
-              {executing ? <Spinner /> : `▶ ${t("action.execute")}`}
-            </Button>
+            <div className="flex gap-2">
+              <Button full onClick={execute} disabled={executing}>
+                {executing ? <Spinner /> : `▶ ${t("action.execute")}`}
+              </Button>
+              {executing && (
+                <Button variant="danger" onClick={cancel}>
+                  {t("common.cancel")}
+                </Button>
+              )}
+            </div>
 
             {/* Result */}
             {result && (

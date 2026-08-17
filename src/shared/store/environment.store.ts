@@ -1,10 +1,10 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { DEFAULT_ENV } from "@/infrastructure/configuration/environments";
-import { checkHealth } from "@/infrastructure/http/health";
+import { probe } from "@/infrastructure/http/WusoolApiClient";
 
 export interface HealthState {
   ok: boolean;
@@ -37,7 +37,7 @@ export const useEnvironmentStore = create<EnvironmentState>()(
 
       checkHealth: async () => {
         set({ health: { ...get().health, checking: true } });
-        const result = await checkHealth(get().env.baseUrl);
+        const result = await probe(get().env.baseUrl);
         const health: HealthState = {
           ok: result.ok,
           status: result.status,
@@ -49,6 +49,7 @@ export const useEnvironmentStore = create<EnvironmentState>()(
     }),
     {
       name: "wusool-environment",
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (s) => ({ env: s.env, adminToken: s.adminToken }),
     },
   ),

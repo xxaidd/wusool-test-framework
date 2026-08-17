@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 interface AuthState {
   /** actorId -> JWT access token acquired via JIT authentication */
@@ -41,6 +41,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "wusool-auth",
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (s) => ({ tokens: s.tokens, emails: s.emails }),
     },
   ),

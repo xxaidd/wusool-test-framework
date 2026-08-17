@@ -34,20 +34,18 @@ export function ActorPanel({
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
   const adminToken = useEnvironmentStore((s) => s.adminToken);
-  const {
-    workspace,
-    discovered,
-    setDiscovered,
-    selectedActorId,
-    selectActor,
-    addToWorkspace,
-    removeFromWorkspace,
-    updateActor,
-    search,
-    setSearch,
-    typeFilter,
-    setTypeFilter,
-  } = useActorStore();
+  const workspace = useActorStore((s) => s.workspace);
+  const discovered = useActorStore((s) => s.discovered);
+  const setDiscovered = useActorStore((s) => s.setDiscovered);
+  const selectedActorId = useActorStore((s) => s.selectedActorId);
+  const selectActor = useActorStore((s) => s.selectActor);
+  const addToWorkspace = useActorStore((s) => s.addToWorkspace);
+  const removeFromWorkspace = useActorStore((s) => s.removeFromWorkspace);
+  const updateActor = useActorStore((s) => s.updateActor);
+  const search = useActorStore((s) => s.search);
+  const setSearch = useActorStore((s) => s.setSearch);
+  const typeFilter = useActorStore((s) => s.typeFilter);
+  const setTypeFilter = useActorStore((s) => s.setTypeFilter);
   const getToken = useAuthStore((s) => s.getToken);
 
   const [discovering, setDiscovering] = useState(false);

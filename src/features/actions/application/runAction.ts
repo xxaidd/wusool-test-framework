@@ -3,11 +3,10 @@ import {
   buildPath,
   buildQuery,
 } from "@/features/actions/application/actionCatalog";
+import type { ActionRepository } from "@/features/actions/application/actionRepository";
 import type { ActionDef } from "@/features/actions/domain/action.types";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
-import { ApiError, apiRequest } from "@/infrastructure/http/WusoolApiClient";
-import { useAuthStore } from "@/shared/store/auth.store";
 
 export interface ActionOutcome {
   ok: boolean;
@@ -26,19 +25,25 @@ export interface ActionOutcome {
   position?: { lat: number; lng: number };
 }
 
+export interface RunActionInput {
+  env: BackendEnvironment;
+  actor: ActorRef;
+  action: ActionDef;
+  args: Record<string, unknown>;
+  position?: { lat: number; lng: number };
+  /** Resolved bearer token, if the actor is authenticated. */
+  token?: string;
+  repo: ActionRepository;
+  signal?: AbortSignal;
+}
+
 /**
  * Execute a client action against the real backend on behalf of an actor.
  * Returns `needsAuth` when authentication is required but not yet supplied,
  * so the UI can prompt the tester for credentials (FR-06 / FR-22).
  */
-export async function runAction(
-  env: BackendEnvironment,
-  actor: ActorRef,
-  action: ActionDef,
-  args: Record<string, unknown>,
-  position?: { lat: number; lng: number },
-): Promise<ActionOutcome> {
-  const token = useAuthStore.getState().getToken(actor.id);
+export async function runAction(input: RunActionInput): Promise<ActionOutcome> {
+  const { env, actor, action, args, position, token, repo, signal } = input;
   const needsAuth = action.requiresAuth && !token;
 
   const path = buildPath(action, args, actor);
@@ -71,30 +76,33 @@ export async function runAction(
   if (needsAuth) return outcome;
 
   const started = performance.now();
-  try {
-    const data = await apiRequest(env, path, {
-      method: method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-      token,
-      params: query,
-      data: body,
-    });
+  const result = await repo.execute({
+    env,
+    path,
+    method,
+    token,
+    params: query,
+    data: body,
+    signal,
+  });
+
+  if (result.ok) {
     outcome.ok = true;
-    outcome.data = data;
-    outcome.statusCode = 200;
+    outcome.data = result.data;
+    outcome.statusCode = result.status;
     outcome.response = {
-      status: 200,
+      status: result.status,
       headers: {},
-      body: JSON.stringify(data, null, 2),
+      body: JSON.stringify(result.data ?? null, null, 2),
     };
-  } catch (err) {
-    if (err instanceof ApiError) {
-      outcome.statusCode = err.status;
-      outcome.error = err.message;
-      outcome.response = { status: err.status, headers: {}, body: err.message };
-    } else {
-      outcome.error = err instanceof Error ? err.message : "Unknown error";
-      outcome.statusCode = 0;
-    }
+  } else {
+    outcome.statusCode = result.status;
+    outcome.error = result.error;
+    outcome.response = {
+      status: result.status,
+      headers: {},
+      body: result.error,
+    };
   }
   outcome.durationMs = Math.round(performance.now() - started);
   return outcome;

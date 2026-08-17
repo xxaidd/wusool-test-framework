@@ -9,6 +9,9 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
+import type { RouteFollower } from "@/features/map/application/movement";
+import { createRouteFollower } from "@/features/map/application/movement";
+import type { LatLng } from "@/features/map/domain/map.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Button } from "@/shared/components/Button";
 import { useI18n } from "@/shared/i18n";
@@ -57,7 +60,9 @@ export function MapCanvas() {
   const [following, setFollowing] = useState(false);
   const [speed, setSpeed] = useState(400);
   const [followActorId, setFollowActorId] = useState<string | null>(null);
-  const stepRef = useRef(0);
+  const followerRef = useRef<RouteFollower | null>(null);
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
 
   const selected = workspace.find((a) => a.id === selectedActorId);
 
@@ -89,47 +94,40 @@ export function MapCanvas() {
     }
   };
 
-  // Constant-speed automated movement along the drawn route.
+  // Constant-speed automated movement along the drawn route, driven by the
+  // framework-free route follower so the engine stays out of the component.
   useEffect(() => {
     if (!following || !followActorId || route.length < 2) return;
-    stepRef.current = 0;
-    const timer = setInterval(() => {
-      stepRef.current += 1;
-      if (stepRef.current >= route.length) {
+    const latlngs: LatLng[] = route.map(([lat, lng]) => ({ lat, lng }));
+    const follower = createRouteFollower(latlngs, speed, {
+      onStep: (pos) => {
+        moveActor(followActorId, pos.lat, pos.lng);
+      },
+      onComplete: (pos) => {
         setFollowing(false);
         addEvent({
           source: SessionSource.Workflow,
           actorId: followActorId,
           actorLabel:
-            workspace.find((a) => a.id === followActorId)?.label ||
+            workspaceRef.current.find((a) => a.id === followActorId)?.label ||
             followActorId,
           actionId: "map.follow",
           actionLabel: t("map.followRoute"),
           categoryId: "location",
           summary: `${t("map.following")} (${route.length} pts)`,
           status: "success",
-          position: {
-            lat: route[route.length - 1][0],
-            lng: route[route.length - 1][1],
-          },
+          position: { lat: pos.lat, lng: pos.lng },
         });
-        return;
-      }
-      const [lat, lng] = route[stepRef.current];
-      moveActor(followActorId, lat, lng);
-    }, speed);
-    return () => clearInterval(timer);
+      },
+    });
+    followerRef.current = follower;
+    follower.start();
+    return () => {
+      follower.stop();
+      followerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    following,
-    followActorId,
-    route,
-    speed,
-    addEvent,
-    moveActor,
-    t,
-    workspace.find,
-  ]);
+  }, [following, followActorId, route, speed, addEvent, moveActor, t]);
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop target for placing actors on the map

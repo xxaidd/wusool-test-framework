@@ -25,9 +25,3 @@ export function serializeSession(input: {
     events: input.events,
   };
 }
-
-/** Build a download-safe filename from a session start timestamp. */
-export function sessionFileName(startedAt?: string): string {
-  const base = startedAt || new Date().toISOString();
-  return `wusool-session-${base.slice(0, 19).replace(/[:T]/g, "-")}.json`;
-}

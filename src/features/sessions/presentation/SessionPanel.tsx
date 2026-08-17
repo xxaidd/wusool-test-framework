@@ -25,16 +25,14 @@ function sourceTone(s: SessionSource) {
 
 export function SessionPanel() {
   const { t } = useI18n();
-  const {
-    recording,
-    paused,
-    events,
-    start,
-    pause,
-    resume,
-    clear,
-    exportSession,
-  } = useSessionStore();
+  const recording = useSessionStore((s) => s.recording);
+  const paused = useSessionStore((s) => s.paused);
+  const events = useSessionStore((s) => s.events);
+  const start = useSessionStore((s) => s.start);
+  const pause = useSessionStore((s) => s.pause);
+  const resume = useSessionStore((s) => s.resume);
+  const clear = useSessionStore((s) => s.clear);
+  const exportSession = useSessionStore((s) => s.exportSession);
   const [detail, setDetail] = useState<SessionEvent | null>(null);
 
   return (
