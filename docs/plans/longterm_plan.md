@@ -66,7 +66,7 @@
   - Current quality checks cannot run in this environment because platform-specific optional packages for Vitest/Biome are missing, and Next cannot create
     its SWC cache directory. Treat dependency reproducibility as a blocking foundation issue.
 
-  - The working tree already contains user-owned changes: package-lock.json is modified and docs/ is untracked. Preserve and review those changes; do not
+  - The working tree already contains user-owned changes: bun.lock is modified and docs/ is untracked. Preserve and review those changes; do not
     overwrite them.
 
   ### Architecture target
@@ -121,7 +121,7 @@
     verification.
 
   - Scope: package-manager consistency, Node-version policy, scripts, CI baseline, and documentation. Do not alter business behavior.
-  - Relevant code/files: package.json, user-owned package-lock.json, biome.json, vitest.config.mts, tsconfig.json, .gitignore, .github/.
+  - Relevant code/files: package.json, user-owned bun.lock, biome.json, vitest.config.mts, tsconfig.json, .gitignore, .github/.
   - Implementation approach: choose and document one supported Node LTS version and package manager; regenerate/install dependencies only after preserving/
     reconciling the existing lockfile change; add typecheck, test coverage, and CI scripts; make cache paths writable in supported environments; add a CI
     workflow that runs install, lint, typecheck, unit tests, build, and later E2E.
@@ -131,7 +131,7 @@
     README with project setup and verification instructions.
 
   - Testing: clean-install smoke test on the target OS and CI OS.
-  - Acceptance criteria: npm ci, npm run lint, npm run typecheck, npm test, and npm run build succeed in a clean supported environment; CI executes them on
+  - Acceptance criteria: bun install, bun run lint, bun run typecheck, bun run test, and bun run build succeed in a clean supported environment; CI executes them on
     every pull request.
 
   - Verification: the above commands plus CI run.
@@ -682,10 +682,10 @@
 
   Standard verification for every implementation task:
 
-  npm run lint
-  npm run typecheck
-  npm test
-  npm run build
+  bun run lint
+  bun run typecheck
+  bun run test
+  bun run build
 
   Run relevant contract/integration/E2E commands in addition. Do not claim a task complete while tooling failures mask these checks; fix or explicitly track
   the toolchain blocker first.
@@ -743,7 +743,7 @@
 
   ## Recommended first steps
 
-  1. Task 0.1: reconcile the existing package-lock.json change with its owner, document the supported Node/package-manager version, repair optional native
+  1. Task 0.1: reconcile the existing bun.lock change with its owner, document the supported Node/package-manager version, repair optional native
      dependency installation, add typecheck, and make lint/test/build green in clean CI.
 
   2. Task 0.2: obtain backend/OpenAPI access; create the Passenger contract matrix for auth, actor discovery, stops, trips, reserve/cancel, correlation

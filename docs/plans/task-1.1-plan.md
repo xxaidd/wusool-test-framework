@@ -83,7 +83,7 @@ Response envelope shape:
 - Update `actorRepository.test.ts` / `actionRepository.test.ts` to mock the BFF client.
 
 ## Verification
-`npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run audit:boundaries`, plus grep
+`bun run lint`, `bun run typecheck`, `bun run test`, `bun run build`, `bun run audit:boundaries`, plus grep
 confirming no presentation file reaches Wusool URLs or imports `WusoolApiClient`.
 
 ## Out of scope (deferred)

@@ -94,5 +94,5 @@ Wusool server client
   switch clear vault contexts.
 
 ## Verification
-`npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run audit:boundaries`.
+`bun run test`, `bun run typecheck`, `bun run lint`, `bun run build`, `bun run audit:boundaries`.
 Preserve the user-owned `docs/plans/longterm_plan.md` modification (untouched).

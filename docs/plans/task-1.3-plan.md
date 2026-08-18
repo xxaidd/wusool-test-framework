@@ -144,5 +144,5 @@ infrastructure; store-adjacent orchestration is audit-clean.
   Tasks 0.1/2.4.
 
 ## Verification
-`npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run audit:boundaries`.
+`bun run lint`, `bun run typecheck`, `bun run test`, `bun run build`, `bun run audit:boundaries`.
 Preserve the user-owned `docs/plans/longterm_plan.md` modification (untouched).

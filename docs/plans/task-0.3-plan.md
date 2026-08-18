@@ -104,11 +104,11 @@ Barrels to update: `actors/index.ts`, `actions/index.ts`, `sessions/index.ts`, `
 ## 5. Verification commands
 
 ```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npm run audit:boundaries
+bun run lint
+bun run typecheck
+bun run test
+bun run build
+bun run audit:boundaries
 ```
 
 Caveat: per the roadmap, the toolchain (Task 0.1) may still be blocked by missing platform optional deps in this environment; do not claim the task done while those mask the checks — fix or explicitly track the blocker first.
