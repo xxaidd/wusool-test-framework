@@ -61,7 +61,7 @@ describe("switchEnvironment", () => {
   beforeEach(() => {
     useEnvironmentStore.setState({
       env: localEnv,
-      adminToken: "",
+      adminConfigured: true,
       health: { ok: true, status: 200, checking: false },
     });
     useActorStore.setState({
@@ -89,7 +89,7 @@ describe("switchEnvironment", () => {
       new BffError(400, "Invalid backend URL.", "ENVIRONMENT"),
     );
 
-    const result = await switchEnvironment(stagingEnv, "");
+    const result = await switchEnvironment(stagingEnv);
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("Invalid backend URL");
@@ -107,12 +107,13 @@ describe("switchEnvironment", () => {
       throw new Error(`Unexpected path ${path}`);
     });
 
-    const result = await switchEnvironment(stagingEnv, "admin-jwt");
+    const result = await switchEnvironment(stagingEnv);
 
     expect(result.ok).toBe(true);
     // Environment committed.
     expect(useEnvironmentStore.getState().env.id).toBe(BackendEnvId.Staging);
-    expect(useEnvironmentStore.getState().adminToken).toBe("admin-jwt");
+    // Admin configuration is reset for the new environment (vault was cleared).
+    expect(useEnvironmentStore.getState().adminConfigured).toBe(false);
     // Old environment vault contexts cleared.
     expect(mockedBffRequest).toHaveBeenCalledWith(
       "/api/wusool/auth/logout",
@@ -142,22 +143,21 @@ describe("switchEnvironment", () => {
       throw new Error(`Unexpected path ${path}`);
     });
 
-    const result = await switchEnvironment(stagingEnv, "");
+    const result = await switchEnvironment(stagingEnv);
 
     expect(result.ok).toBe(true);
     expect(useEnvironmentStore.getState().env.id).toBe(BackendEnvId.Staging);
   });
 
-  it("is a no-op for the same environment except the admin token", async () => {
+  it("is a no-op for the same environment", async () => {
     mockedBffRequest.mockRejectedValue(
       new Error("should not be called for unchanged env"),
     );
 
-    const result = await switchEnvironment(localEnv, "admin-jwt");
+    const result = await switchEnvironment(localEnv);
 
     expect(result.ok).toBe(true);
     expect(mockedBffRequest).not.toHaveBeenCalled();
-    expect(useEnvironmentStore.getState().adminToken).toBe("admin-jwt");
     expect(useEnvironmentStore.getState().env.id).toBe(BackendEnvId.Local);
   });
 });

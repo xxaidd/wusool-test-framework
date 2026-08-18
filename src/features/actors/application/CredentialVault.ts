@@ -29,6 +29,12 @@ export interface CredentialVault {
     context: AuthContext,
   ): Promise<void>;
   resolve(actorId: string, envId: string): Promise<AuthContext | null>;
+  /** Persist the admin/session-manager auth context for an environment. */
+  setAdminContext(envId: string, context: AuthContext): Promise<void>;
+  /** Resolve the admin/session-manager auth context for an environment. */
+  resolveAdminContext(envId: string): Promise<AuthContext | null>;
+  /** Clear the admin/session-manager auth context for an environment. */
+  clearAdminContext(envId: string): Promise<void>;
   clear(actorId: string, envId: string): Promise<void>;
   clearForEnvironment(envId: string): Promise<void>;
   clearAll(): Promise<void>;

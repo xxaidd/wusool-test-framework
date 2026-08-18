@@ -85,6 +85,7 @@ export function App() {
           <ActorPanel
             onOpenCreate={() => setCreateOpen(true)}
             onRequestAuth={requestAuth}
+            onOpenEnvironment={() => setEnvOpen(true)}
           />
         </aside>
 
@@ -126,6 +127,10 @@ export function App() {
       <CreateActorModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+        onOpenEnvironment={() => {
+          setCreateOpen(false);
+          setEnvOpen(true);
+        }}
       />
       <AuthPromptModal
         open={!!authActor}

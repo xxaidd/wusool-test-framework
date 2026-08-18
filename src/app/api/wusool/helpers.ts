@@ -44,7 +44,10 @@ export function fail(err: unknown): Response {
   } else if (isAppError(err)) {
     if (err.code === "VALIDATION" || err.code === "ENVIRONMENT") {
       status = 400;
-    } else if (err.code === "AUTHENTICATION") {
+    } else if (
+      err.code === "AUTHENTICATION" ||
+      err.code === "ADMIN_AUTH_REQUIRED"
+    ) {
       status = 401;
     } else if (err.code === "BACKEND_UNAVAILABLE") {
       status = 502;

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { configureAdmin } from "@/features/actors/infrastructure/actorRepository";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
+import { SessionSource } from "@/features/sessions/domain/session.types";
 import { envPresets } from "@/infrastructure/configuration/environments";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
@@ -27,6 +29,8 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
+type AdminMode = "credentials" | "token";
+
 export function EnvironmentModal({
   open,
   onClose,
@@ -36,8 +40,8 @@ export function EnvironmentModal({
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
-  const adminToken = useEnvironmentStore((s) => s.adminToken);
-  const setAdminToken = useEnvironmentStore((s) => s.setAdminToken);
+  const adminConfigured = useEnvironmentStore((s) => s.adminConfigured);
+  const setAdminConfigured = useEnvironmentStore((s) => s.setAdminConfigured);
   const health = useEnvironmentStore((s) => s.health);
   const checkHealth = useEnvironmentStore((s) => s.checkHealth);
   const workspace = useActorStore((s) => s.workspace);
@@ -47,9 +51,13 @@ export function EnvironmentModal({
 
   const [selected, setSelected] = useState<BackendEnvironment>(env);
   const [customUrl, setCustomUrl] = useState(env.custom ? env.baseUrl : "");
-  const [admin, setAdmin] = useState(adminToken);
+  const [adminMode, setAdminMode] = useState<AdminMode>("credentials");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminToken, setAdminToken] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const chosen: BackendEnvironment =
     selected.id === BackendEnvId.Custom
@@ -73,6 +81,55 @@ export function EnvironmentModal({
     selected.id === BackendEnvId.Custom &&
     (customUrl.trim() === "" || !isValidHttpUrl(customUrl));
 
+  const hasAdminInput =
+    adminEmail.trim() !== "" ||
+    adminPassword.trim() !== "" ||
+    adminToken.trim() !== "";
+
+  /**
+   * Configure the admin/session-manager identity for the target environment.
+   * Returns true when the modal should close (no-op or success); false when
+   * the user should stay and fix the inputs.
+   */
+  const applyAdmin = async (target: BackendEnvironment): Promise<boolean> => {
+    if (!hasAdminInput) return true;
+    try {
+      setSaving(true);
+      await configureAdmin(
+        target,
+        adminMode === "credentials"
+          ? {
+              mode: "credentials",
+              email: adminEmail.trim(),
+              password: adminPassword,
+            }
+          : { mode: "token", token: adminToken.trim() },
+      );
+      setAdminConfigured(true);
+      useSessionStore.getState().addEvent({
+        source: SessionSource.System,
+        actorId: "system",
+        actorLabel: "System",
+        actionId: "admin.auth.login",
+        actionLabel: t("environment.adminUpdated"),
+        categoryId: "environment",
+        summary: t("environment.adminConfigured"),
+        status: "info",
+      });
+      return true;
+    } catch (err) {
+      setAdminConfigured(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("environment.adminConfigureFailed"),
+      );
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const apply = async () => {
     if (customInvalid) {
       setError(t("environment.urlInvalid"));
@@ -80,18 +137,17 @@ export function EnvironmentModal({
     }
     setError(null);
     if (!envChanged) {
-      setAdminToken(admin);
-      onClose();
+      const adminOk = await applyAdmin(chosen);
+      if (adminOk) onClose();
       return;
     }
-    const result = await switchEnvironment(chosen, admin, {
-      eventLabel: t("environment.switch"),
-    });
+    const result = await switchEnvironment(chosen);
     if (!result.ok) {
       setError(result.error ?? t("environment.urlInvalid"));
       return;
     }
-    onClose();
+    const adminOk = await applyAdmin(chosen);
+    if (adminOk) onClose();
   };
 
   return (
@@ -105,6 +161,7 @@ export function EnvironmentModal({
             cancelLabel={t("common.cancel")}
             onCancel={onClose}
             confirmLabel={t("environment.connect")}
+            loading={saving}
             onConfirm={() => {
               if (envChanged && hasScopedState && !confirming) {
                 setConfirming(true);
@@ -132,6 +189,19 @@ export function EnvironmentModal({
                     ? "…"
                     : t("app.connectionError")}
               </Badge>
+              <span
+                title={
+                  adminConfigured
+                    ? t("environment.adminHint")
+                    : t("environment.adminNeeded")
+                }
+              >
+                <Badge tone={adminConfigured ? "success" : "neutral"}>
+                  {adminConfigured
+                    ? t("environment.adminConfigured")
+                    : t("environment.adminNotConfigured")}
+                </Badge>
+              </span>
             </div>
           </div>
 
@@ -194,23 +264,73 @@ export function EnvironmentModal({
             </p>
           )}
 
-          <div className="border-t border-border pt-3">
-            <Input
-              label="Admin token (optional, for discovery & privileged creation)"
-              value={admin}
-              onChange={(e) => setAdmin(e.target.value)}
-              placeholder="eyJhbGciOi…"
-              type="password"
-              dir="ltr"
-            />
-            <Button
-              variant="subtle"
-              size="sm"
-              className="mt-2"
-              onClick={() => checkHealth()}
-            >
-              {t("environment.testConnection")}
-            </Button>
+          <div className="space-y-3 border-t border-border pt-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-semibold text-ink">
+                {t("environment.adminTitle")}
+              </div>
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() => checkHealth()}
+              >
+                {t("environment.testConnection")}
+              </Button>
+            </div>
+
+            <div className="flex rounded-lg border border-border p-0.5">
+              {(
+                [
+                  ["credentials", t("environment.adminCredsMode")],
+                  ["token", t("environment.adminTokenMode")],
+                ] as [AdminMode, string][]
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setAdminMode(mode)}
+                  className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                    adminMode === mode
+                      ? "bg-primary-container text-primary"
+                      : "text-ink-soft hover:text-ink"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {adminMode === "credentials" ? (
+              <>
+                <Input
+                  label={t("environment.adminEmail")}
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  type="email"
+                  dir="ltr"
+                  autoComplete="username"
+                />
+                <Input
+                  label={t("environment.adminPassword")}
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  type="password"
+                  dir="ltr"
+                  autoComplete="current-password"
+                />
+              </>
+            ) : (
+              <Input
+                label={t("environment.adminToken")}
+                value={adminToken}
+                onChange={(e) => setAdminToken(e.target.value)}
+                placeholder="eyJhbGciOi…"
+                type="password"
+                dir="ltr"
+              />
+            )}
+
+            <p className="text-xs text-ink-soft">{t("environment.adminHint")}</p>
           </div>
         </div>
       </Modal>

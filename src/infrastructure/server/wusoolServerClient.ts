@@ -221,6 +221,36 @@ export async function serverLogin(
   };
 }
 
+/**
+ * Refresh an access token using its refresh token. Parsed defensively so
+ * both rotation (`accessToken` + new `refreshToken`) and non-rotating
+ * responses are handled. Throws {@link ServerApiError} on failure.
+ */
+export async function serverRefresh(
+  env: BackendEnvironment,
+  refreshToken: string,
+): Promise<AuthTokens> {
+  const data = await serverRequest(env, "/api/v1/auth/refresh", {
+    method: "POST",
+    data: { refreshToken },
+  });
+  const body = data.data as {
+    accessToken?: unknown;
+    token?: unknown;
+    refreshToken?: unknown;
+    tokenType?: unknown;
+  };
+  const readString = (value: unknown): string | undefined =>
+    typeof value === "string" && value ? value : undefined;
+  const accessToken = readString(body.accessToken ?? body.token) ?? "";
+  return {
+    accessToken,
+    refreshToken: readString(body.refreshToken),
+    tokenType: readString(body.tokenType),
+    expiresAt: extractExpiry(accessToken),
+  };
+}
+
 /** Register a passenger and return the resulting tokens and user id. */
 export async function serverRegister(
   env: BackendEnvironment,

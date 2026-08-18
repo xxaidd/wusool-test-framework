@@ -4,19 +4,16 @@ import type {
   CreateActorInput,
 } from "@/features/actors/domain/actor.types";
 import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
+import { adminRequest } from "@/infrastructure/server/adminAuth";
 import { getDevCredentialVault } from "@/infrastructure/server/credentialVaultDev";
 import { resolveEnvironment } from "@/infrastructure/server/environmentResolver";
-import {
-  serverRegister,
-  serverRequest,
-} from "@/infrastructure/server/wusoolServerClient";
+import { serverRegister } from "@/infrastructure/server/wusoolServerClient";
 import { ValidationError } from "@/shared/errors";
 import { fail, ok } from "../helpers";
 import { createActorInputSchema, envInputSchema } from "../schemas";
 
 const createSchema = z.object({
   env: envInputSchema,
-  adminToken: z.string().optional(),
   input: createActorInputSchema,
 });
 
@@ -59,15 +56,15 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (input.type === ActorType.Driver) {
-      const data = (await serverRequest(env, "/api/v1/admin/drivers", {
+      const res = await adminRequest(vault, env, "/api/v1/admin/drivers", {
         method: "POST",
-        token: body.adminToken,
         data: {
           email: input.email ?? "",
           password: input.password ?? "",
           fullName: input.name,
         },
-      })) as unknown as {
+      });
+      const data = res.data as {
         driverId?: number | string;
         id?: number | string;
       } | null;
@@ -84,14 +81,14 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (input.type === ActorType.Bus) {
-      const data = (await serverRequest(env, "/api/v1/buses", {
+      const res = await adminRequest(vault, env, "/api/v1/buses", {
         method: "POST",
-        token: body.adminToken,
         data: {
           plateNumber: input.plateNumber,
           capacity: input.capacityNumber,
         },
-      })) as unknown as { id?: number | string } | null;
+      });
+      const data = res.data as { id?: number | string } | null;
       const actor: ActorRef = {
         id: String(data?.id ?? Date.now()),
         type: ActorType.Bus,
