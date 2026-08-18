@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wusool Testing Framework
 
-## Getting Started
+A web-based testing and simulation framework that exercises the real Wusool backend through Passenger, Driver, and Bus actors. It supports manual actions, map movement, workflows, session investigation, and read-only session-file viewing.
 
-First, run the development server:
+Read `AGENTS.md` before modifying the codebase — it defines the architecture, conventions, and engineering rules for this project.
+
+## Prerequisites
+
+- Node.js **24 LTS** (see `.nvmrc`). Other versions are not supported.
+- npm (the lockfile is `package-lock.json`; the supported package manager is npm).
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci        # install exactly what the lockfile declares
+npm run dev   # start the development server
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Verification
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Every pull request must pass these checks (they also run in CI via `.github/workflows/ci.yml`):
 
-## Learn More
+```bash
+npm run lint        # Biome
+npm run typecheck   # tsc --noEmit
+npm test            # Vitest unit tests
+npm run build       # Next.js production build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Additional commands:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run test:coverage   # unit tests with coverage report
+npm run lint:fix        # auto-fix lint issues
+npm run format          # format code with Biome
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+If `npm ci` is not used, `npm install` may produce a different dependency tree — always keep `package-lock.json` in sync and commit it.
 
-## Deploy on Vercel
+## Documentation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `docs/plans/longterm_plan.md` — implementation roadmap.
+- `docs/fr/wusool_testing_framework_functional_requirements.md` — authoritative functional requirements.
+- `design_tokens.md` — visual token reference.

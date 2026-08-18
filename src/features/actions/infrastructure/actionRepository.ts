@@ -2,15 +2,17 @@ import {
   ApiError,
   apiRequestDetailed,
 } from "@/infrastructure/http/WusoolApiClient";
+import { classifyError, classifyHttpStatus } from "@/shared/errors";
 import type {
   ActionRepository,
-  ActionRepositoryResult,
   ActionRequestInput,
+  ActionResult,
 } from "../application/actionRepository";
 
 /** Default {@link ActionRepository} backed by the centralized HTTP client. */
 export const httpActionRepository: ActionRepository = {
-  async execute(input: ActionRequestInput): Promise<ActionRepositoryResult> {
+  async execute(input: ActionRequestInput): Promise<ActionResult> {
+    const correlation = {};
     try {
       const { status, data } = await apiRequestDetailed(input.env, input.path, {
         method: input.method,
@@ -19,15 +21,26 @@ export const httpActionRepository: ActionRepository = {
         data: input.data,
         signal: input.signal,
       });
-      return { ok: true, status, data };
+      return { status: "success", statusCode: status, data, correlation };
     } catch (err) {
       if (err instanceof ApiError) {
-        return { ok: false, status: err.status, error: err.message };
+        if (err.status === 401 || err.status === 403) {
+          return { status: "needs-auth", correlation };
+        }
+        return {
+          status: "failure",
+          classification: classifyHttpStatus(err.status),
+          statusCode: err.status,
+          message: err.message,
+          correlation,
+        };
       }
       return {
-        ok: false,
-        status: 0,
-        error: err instanceof Error ? err.message : "Unknown error",
+        status: "failure",
+        classification: classifyError(err),
+        statusCode: 0,
+        message: err instanceof Error ? err.message : "Unknown error",
+        correlation,
       };
     }
   },

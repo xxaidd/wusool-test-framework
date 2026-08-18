@@ -7,6 +7,10 @@ import type {
   SessionSource,
 } from "@/features/sessions/domain/session.types";
 import { browserSessionDownloader } from "@/features/sessions/infrastructure/sessionDownloader";
+import {
+  redactHeaders,
+  redactStringifiedBody,
+} from "@/shared/redaction/redact";
 
 export interface NewEvent {
   source: SessionSource;
@@ -63,6 +67,28 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!s.recording || s.paused) return;
     const event: SessionEvent = {
       ...e,
+      request: e.request
+        ? {
+            method: e.request.method,
+            url: e.request.url,
+            headers: redactHeaders(e.request.headers),
+            body:
+              e.request.body != null
+                ? redactStringifiedBody(e.request.body)
+                : undefined,
+          }
+        : undefined,
+      response: e.response
+        ? {
+            status: e.response.status,
+            headers: redactHeaders(e.response.headers),
+            body:
+              e.response.body != null
+                ? redactStringifiedBody(e.response.body)
+                : "",
+          }
+        : undefined,
+      error: e.error,
       id: `ev_${Date.now()}_${++counter}`,
       ts: new Date().toISOString(),
     };

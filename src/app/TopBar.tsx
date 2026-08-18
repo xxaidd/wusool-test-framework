@@ -1,5 +1,6 @@
 "use client";
 
+import { useShallow } from "zustand/react/shallow";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { LanguageSwitcher } from "@/shared/components/LanguageSwitcher";
@@ -17,15 +18,17 @@ export function TopBar({
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
   const health = useEnvironmentStore((s) => s.health);
-  const session = useSessionStore((s) => ({
-    recording: s.recording,
-    paused: s.paused,
-    count: s.events.length,
-    start: s.start,
-    pause: s.pause,
-    resume: s.resume,
-    export: s.exportSession,
-  }));
+  const session = useSessionStore(
+    useShallow((s) => ({
+      recording: s.recording,
+      paused: s.paused,
+      count: s.events.length,
+      start: s.start,
+      pause: s.pause,
+      resume: s.resume,
+      export: s.exportSession,
+    })),
+  );
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
 

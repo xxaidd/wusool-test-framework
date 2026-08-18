@@ -7,6 +7,7 @@ import type { ActionRepository } from "@/features/actions/application/actionRepo
 import type { ActionDef } from "@/features/actions/domain/action.types";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
+import type { CorrelationInfo } from "@/shared/lib/correlation";
 
 export interface ActionOutcome {
   ok: boolean;
@@ -15,6 +16,7 @@ export interface ActionOutcome {
   statusCode?: number;
   error?: string;
   durationMs: number;
+  correlation?: CorrelationInfo;
   request: {
     method: string;
     url: string;
@@ -86,22 +88,34 @@ export async function runAction(input: RunActionInput): Promise<ActionOutcome> {
     signal,
   });
 
-  if (result.ok) {
+  if (result.status === "success") {
     outcome.ok = true;
     outcome.data = result.data;
-    outcome.statusCode = result.status;
+    outcome.statusCode = result.statusCode;
+    outcome.correlation = result.correlation;
     outcome.response = {
-      status: result.status,
+      status: result.statusCode,
       headers: {},
       body: JSON.stringify(result.data ?? null, null, 2),
     };
-  } else {
-    outcome.statusCode = result.status;
-    outcome.error = result.error;
+  } else if (result.status === "needs-auth") {
+    outcome.needsAuth = true;
+    outcome.correlation = result.correlation;
+    outcome.statusCode = 401;
+    outcome.error = "Authentication required";
     outcome.response = {
-      status: result.status,
+      status: 401,
       headers: {},
-      body: result.error,
+      body: "Authentication required",
+    };
+  } else {
+    outcome.statusCode = result.statusCode;
+    outcome.error = result.message;
+    outcome.correlation = result.correlation;
+    outcome.response = {
+      status: result.statusCode ?? 0,
+      headers: {},
+      body: result.message,
     };
   }
   outcome.durationMs = Math.round(performance.now() - started);
