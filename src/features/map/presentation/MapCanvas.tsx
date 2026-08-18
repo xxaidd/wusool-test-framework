@@ -17,6 +17,7 @@ import { Button } from "@/shared/components/Button";
 import { useI18n } from "@/shared/i18n";
 import { actorColors, tokens } from "@/shared/lib/tokens";
 import { useActorStore } from "@/shared/store/actor.store";
+import { useEnvironmentStore } from "@/shared/store/environment.store";
 import { useSessionStore } from "@/shared/store/session.store";
 
 const ICONS: Record<string, string> = {
@@ -43,7 +44,7 @@ function MapBridge({ onReady }: { onReady: (map: L.Map) => void }) {
   return null;
 }
 
-const DEFAULT_CENTER: [number, number] = [24.7136, 46.6753]; // Riyadh
+const DEFAULT_CENTER: [number, number] = [32.027, 44.3887]; // University of Kufa
 
 export function MapCanvas() {
   const { t } = useI18n();
@@ -53,6 +54,7 @@ export function MapCanvas() {
   const moveActor = useActorStore((s) => s.moveActor);
   const selectedActorId = useActorStore((s) => s.selectedActorId);
   const addEvent = useSessionStore((s) => s.addEvent);
+  const envId = useEnvironmentStore((s) => s.env.id);
 
   const mapRef = useRef<L.Map | null>(null);
   const [route, setRoute] = useState<Array<[number, number]>>([]);
@@ -63,6 +65,17 @@ export function MapCanvas() {
   const followerRef = useRef<RouteFollower | null>(null);
   const workspaceRef = useRef(workspace);
   workspaceRef.current = workspace;
+
+  // Environment switches reset map-local work: routes, drawing, and automated
+  // movement must never carry across environments (FR-36 / Task 1.3). Setting
+  // `following` to false also stops the active RouteFollower via effect cleanup.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset-on-env-change
+  useEffect(() => {
+    setRoute([]);
+    setDrawing(false);
+    setFollowing(false);
+    setFollowActorId(null);
+  }, [envId]);
 
   const selected = workspace.find((a) => a.id === selectedActorId);
 
@@ -132,7 +145,7 @@ export function MapCanvas() {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop target for placing actors on the map
     <div
-      className="relative h-full w-full"
+      className="relative isolate h-full w-full"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
@@ -156,26 +169,28 @@ export function MapCanvas() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapBridge onReady={(m) => (mapRef.current = m)} />
-        {placed.map((p) => {
-          const actor = workspace.find((a) => a.id === p.actorId);
-          const type = actor?.type || "passenger";
-          const isSel = actor?.id === selectedActorId;
-          return (
-            <Marker
-              key={p.actorId}
-              position={[p.lat, p.lng]}
-              icon={markerIcon(type)}
-              draggable
-              eventHandlers={{
-                dragend: (e) => {
-                  const ll = (e.target as L.Marker).getLatLng();
-                  moveActor(p.actorId, ll.lat, ll.lng);
-                },
-              }}
-              zIndexOffset={isSel ? 1000 : 0}
-            />
-          );
-        })}
+        {placed
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+          .map((p) => {
+            const actor = workspace.find((a) => a.id === p.actorId);
+            const type = actor?.type || "passenger";
+            const isSel = actor?.id === selectedActorId;
+            return (
+              <Marker
+                key={p.actorId}
+                position={[p.lat, p.lng]}
+                icon={markerIcon(type)}
+                draggable
+                eventHandlers={{
+                  dragend: (e) => {
+                    const ll = (e.target as L.Marker).getLatLng();
+                    moveActor(p.actorId, ll.lat, ll.lng);
+                  },
+                }}
+                zIndexOffset={isSel ? 1000 : 0}
+              />
+            );
+          })}
         {route.length > 1 && (
           <Polyline
             positions={route}

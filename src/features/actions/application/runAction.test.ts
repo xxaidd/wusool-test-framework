@@ -42,6 +42,18 @@ describe("runAction", () => {
       statusCode: 201,
       data: { id: 42 },
       correlation: { traceId: "trace-1" },
+      request: {
+        method: "POST",
+        path: "/api/v1/bus-trips/42/start",
+        query: { id: "42" },
+        headers: {},
+        body: "{}",
+      },
+      response: {
+        statusCode: 201,
+        headers: {},
+        body: '{"id":42}',
+      },
     });
     const outcome = await runAction({
       env,
@@ -57,20 +69,40 @@ describe("runAction", () => {
     expect(outcome.statusCode).toBe(201);
     expect(outcome.data).toEqual({ id: 42 });
     expect(outcome.correlation).toEqual({ traceId: "trace-1" });
-    expect(outcome.request.url).toBe(
-      "http://localhost:5002/api/v1/bus-trips/42/start?id=42",
-    );
-    expect(outcome.request.headers.Authorization).toBe("Bearer •••");
-    expect(outcome.response?.status).toBe(201);
+    expect(outcome.request.path).toBe("/api/v1/bus-trips/42/start");
+    expect(outcome.response?.statusCode).toBe(201);
     expect(JSON.parse(outcome.response?.body ?? "")).toEqual({ id: 42 });
     expect(repo.execute).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: "/api/v1/bus-trips/42/start",
-        method: "POST",
+        actor,
+        action: expect.objectContaining({ id: "driver.startTrip" }),
+        args: { id: "42" },
         token: "secret-token",
-        data: { id: "42" },
       }),
     );
+  });
+
+  it("falls back to the local preview when the repository returns no evidence", async () => {
+    const repo = repoReturning({
+      status: "success",
+      statusCode: 201,
+      data: { id: 42 },
+      correlation: {},
+    });
+    const outcome = await runAction({
+      env,
+      actor,
+      action: mustGet("driver.startTrip"),
+      args: { id: "42" },
+      token: "secret-token",
+      repo,
+    });
+
+    expect(outcome.request.path).toBe("/api/v1/bus-trips/42/start");
+    expect(outcome.request.query).toEqual({ id: "42" });
+    expect(outcome.request.headers.Authorization).toBe("Bearer •••");
+    expect(outcome.response?.statusCode).toBe(201);
+    expect(JSON.parse(outcome.response?.body ?? "")).toEqual({ id: 42 });
   });
 
   it("normalizes a failed action", async () => {
@@ -105,7 +137,6 @@ describe("runAction", () => {
       actor,
       action: mustGet("driver.startTrip"),
       args: { id: "42" },
-      token: "expired-token",
       repo,
     });
 
@@ -113,21 +144,6 @@ describe("runAction", () => {
     expect(outcome.needsAuth).toBe(true);
     expect(outcome.statusCode).toBe(401);
     expect(repo.execute).toHaveBeenCalled();
-  });
-
-  it("returns needsAuth without calling the repository", async () => {
-    const execute = vi.fn();
-    const outcome = await runAction({
-      env,
-      actor,
-      action: mustGet("driver.startTrip"),
-      args: { id: "42" },
-      repo: { execute },
-    });
-
-    expect(outcome.needsAuth).toBe(true);
-    expect(outcome.ok).toBe(false);
-    expect(execute).not.toHaveBeenCalled();
   });
 
   it("carries position through to the outcome", async () => {

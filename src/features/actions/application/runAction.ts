@@ -8,6 +8,10 @@ import type { ActionDef } from "@/features/actions/domain/action.types";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import type { CorrelationInfo } from "@/shared/lib/correlation";
+import type {
+  SanitizedRequest,
+  SanitizedResponse,
+} from "@/shared/redaction/redact";
 
 export interface ActionOutcome {
   ok: boolean;
@@ -17,13 +21,8 @@ export interface ActionOutcome {
   error?: string;
   durationMs: number;
   correlation?: CorrelationInfo;
-  request: {
-    method: string;
-    url: string;
-    headers: Record<string, string>;
-    body?: string;
-  };
-  response?: { status: number; headers: Record<string, string>; body: string };
+  request: SanitizedRequest;
+  response?: SanitizedResponse;
   position?: { lat: number; lng: number };
 }
 
@@ -33,7 +32,7 @@ export interface RunActionInput {
   action: ActionDef;
   args: Record<string, unknown>;
   position?: { lat: number; lng: number };
-  /** Resolved bearer token, if the actor is authenticated. */
+  /** Resolved bearer token, if available (server-side only in the BFF flow). */
   token?: string;
   repo: ActionRepository;
   signal?: AbortSignal;
@@ -41,50 +40,44 @@ export interface RunActionInput {
 
 /**
  * Execute a client action against the real backend on behalf of an actor.
- * Returns `needsAuth` when authentication is required but not yet supplied,
- * so the UI can prompt the tester for credentials (FR-06 / FR-22).
+ * The repository decides whether authentication is required; when it reports
+ * `needs-auth`, the outcome surfaces it so the UI can prompt the tester for
+ * credentials (FR-06 / FR-22). Sanitized request/response from the repository
+ * overwrite the locally-built preview whenever available.
  */
 export async function runAction(input: RunActionInput): Promise<ActionOutcome> {
   const { env, actor, action, args, position, token, repo, signal } = input;
-  const needsAuth = action.requiresAuth && !token;
 
   const path = buildPath(action, args, actor);
   const query = buildQuery(action, args);
   const method = action.method;
 
-  const qs = query ? `?${new URLSearchParams(query).toString()}` : "";
-  const url = `${env.baseUrl}${path}${qs}`;
-
   const isBody = ["POST", "PUT", "PATCH"].includes(method);
   const body = isBody ? buildBody(action, args, actor) : undefined;
 
-  const request = {
+  const preview: SanitizedRequest = {
     method,
-    url,
-    headers: (needsAuth ? {} : { Authorization: "Bearer •••" }) as Record<
-      string,
-      string
-    >,
-    body: body != null ? JSON.stringify(body, null, 2) : undefined,
+    path,
+    ...(query != null ? { query } : {}),
+    headers: token ? { Authorization: "Bearer •••" } : {},
+    ...(body != null ? { body: JSON.stringify(body, null, 2) } : {}),
   };
 
   const outcome: ActionOutcome = {
     ok: false,
-    needsAuth,
-    request,
+    needsAuth: false,
+    request: preview,
     durationMs: 0,
     position,
   };
-  if (needsAuth) return outcome;
 
   const started = performance.now();
   const result = await repo.execute({
     env,
-    path,
-    method,
+    actor,
+    action,
+    args,
     token,
-    params: query,
-    data: body,
     signal,
   });
 
@@ -93,8 +86,9 @@ export async function runAction(input: RunActionInput): Promise<ActionOutcome> {
     outcome.data = result.data;
     outcome.statusCode = result.statusCode;
     outcome.correlation = result.correlation;
-    outcome.response = {
-      status: result.statusCode,
+    outcome.request = result.request ?? preview;
+    outcome.response = result.response ?? {
+      statusCode: result.statusCode,
       headers: {},
       body: JSON.stringify(result.data ?? null, null, 2),
     };
@@ -103,8 +97,9 @@ export async function runAction(input: RunActionInput): Promise<ActionOutcome> {
     outcome.correlation = result.correlation;
     outcome.statusCode = 401;
     outcome.error = "Authentication required";
-    outcome.response = {
-      status: 401,
+    outcome.request = result.request ?? preview;
+    outcome.response = result.response ?? {
+      statusCode: 401,
       headers: {},
       body: "Authentication required",
     };
@@ -112,8 +107,9 @@ export async function runAction(input: RunActionInput): Promise<ActionOutcome> {
     outcome.statusCode = result.statusCode;
     outcome.error = result.message;
     outcome.correlation = result.correlation;
-    outcome.response = {
-      status: result.statusCode ?? 0,
+    outcome.request = result.request ?? preview;
+    outcome.response = result.response ?? {
+      statusCode: result.statusCode ?? 0,
       headers: {},
       body: result.message,
     };

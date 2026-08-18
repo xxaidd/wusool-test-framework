@@ -1,7 +1,9 @@
 // Dependency-free architectural boundary audit.
 // Mirrors the `rg` check from the Task 0.3 plan: no domain/application module
 // may import framework, browser, Zustand store, or presentation/infrastructure
-// internals. Exit 0 when clean, 1 when violations exist.
+// internals. Stores must stay client-side (no server/BFF route imports).
+// BFF route handlers must stay server-side (no browser BFF client imports).
+// Exit 0 when clean, 1 when violations exist.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -13,6 +15,8 @@ const scopedDirs = [
   "src/shared/redaction",
   "src/shared/errors",
   "src/shared/lib",
+  "src/shared/store",
+  "src/app/api",
 ];
 
 function walk(dir) {
@@ -25,8 +29,12 @@ function walk(dir) {
   return out;
 }
 
-function isBoundaryFile(rel) {
-  const normalized = rel.split(path.sep).join("/");
+function normalize(rel) {
+  return rel.split(path.sep).join("/");
+}
+
+function isCoreBoundaryFile(rel) {
+  const normalized = normalize(rel);
   if (
     normalized.startsWith("src/shared/redaction/") ||
     normalized.startsWith("src/shared/errors/") ||
@@ -37,7 +45,15 @@ function isBoundaryFile(rel) {
   return /^src\/features\/[^/]+\/(domain|application)\//.test(normalized);
 }
 
-function isForbiddenSpecifier(spec) {
+function isStoreFile(rel) {
+  return normalize(rel).startsWith("src/shared/store/");
+}
+
+function isRouteFile(rel) {
+  return normalize(rel).startsWith("src/app/api/");
+}
+
+function isCoreForbiddenSpecifier(spec) {
   if (/^(react|react-dom|react-leaflet)(\/|$)/.test(spec)) return true;
   if (/^next(\/|$)/.test(spec)) return true;
   if (/^axios(\/|$)/.test(spec)) return true;
@@ -48,6 +64,20 @@ function isForbiddenSpecifier(spec) {
   return false;
 }
 
+function isStoreForbiddenSpecifier(spec) {
+  if (/^@\/infrastructure\/server(\/|$)/.test(spec)) return true;
+  if (/^@\/app\/api(\/|$)/.test(spec)) return true;
+  if (/^next(\/|$)/.test(spec)) return true;
+  if (/^leaflet(\/|$)/.test(spec)) return true;
+  return false;
+}
+
+function isRouteForbiddenSpecifier(spec) {
+  if (/^@\/infrastructure\/bff(\/|$)/.test(spec)) return true;
+  if (/^@\/shared\/store(\/|$)/.test(spec)) return true;
+  return false;
+}
+
 const violations = [];
 const specifierRe = /\bfrom\s+['"]([^'"]+)['"]/g;
 
@@ -55,11 +85,16 @@ for (const dir of scopedDirs) {
   const abs = path.join(root, dir);
   for (const file of walk(abs)) {
     const rel = path.relative(root, file);
-    if (!isBoundaryFile(rel)) continue;
     const content = fs.readFileSync(file, "utf8");
+    let forbidden;
+    if (isCoreBoundaryFile(rel)) forbidden = isCoreForbiddenSpecifier;
+    else if (isStoreFile(rel)) forbidden = isStoreForbiddenSpecifier;
+    else if (isRouteFile(rel)) forbidden = isRouteForbiddenSpecifier;
+    else continue;
+
     for (const match of content.matchAll(specifierRe)) {
       const spec = match[1];
-      if (isForbiddenSpecifier(spec)) {
+      if (forbidden(spec)) {
         violations.push(`${rel} imports "${spec}"`);
       }
     }

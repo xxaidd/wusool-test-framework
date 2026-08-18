@@ -3,46 +3,53 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+/**
+ * Client-side authentication display state. Tokens never reach the browser;
+ * they live in the server-side vault keyed by `(actorId, environmentId)`.
+ * This store only mirrors which actors have authenticated (and their email
+ * for display) so the UI can badge them correctly.
+ */
 interface AuthState {
-  /** actorId -> JWT access token acquired via JIT authentication */
-  tokens: Record<string, string>;
-  /** actorId -> email used to authenticate (for display) */
+  authenticated: Record<string, boolean>;
   emails: Record<string, string>;
-  setToken: (actorId: string, token: string, email?: string) => void;
-  clearToken: (actorId: string) => void;
+  setAuthenticated: (actorId: string, email?: string) => void;
+  clear: (actorId: string) => void;
   clearAll: () => void;
-  getToken: (actorId: string) => string | undefined;
+  isAuthenticated: (actorId: string) => boolean;
+  getEmail: (actorId: string) => string | undefined;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      tokens: {},
+      authenticated: {},
       emails: {},
 
-      setToken: (actorId, token, email) =>
+      setAuthenticated: (actorId, email) =>
         set((s) => ({
-          tokens: { ...s.tokens, [actorId]: token },
+          authenticated: { ...s.authenticated, [actorId]: true },
           emails: email ? { ...s.emails, [actorId]: email } : s.emails,
         })),
 
-      clearToken: (actorId) =>
+      clear: (actorId) =>
         set((s) => {
-          const tokens = { ...s.tokens };
+          const authenticated = { ...s.authenticated };
           const emails = { ...s.emails };
-          delete tokens[actorId];
+          delete authenticated[actorId];
           delete emails[actorId];
-          return { tokens, emails };
+          return { authenticated, emails };
         }),
 
-      clearAll: () => set({ tokens: {}, emails: {} }),
+      clearAll: () => set({ authenticated: {}, emails: {} }),
 
-      getToken: (actorId) => get().tokens[actorId],
+      isAuthenticated: (actorId) => get().authenticated[actorId] === true,
+
+      getEmail: (actorId) => get().emails[actorId],
     }),
     {
       name: "wusool-auth",
       storage: createJSONStorage(() => sessionStorage),
-      partialize: (s) => ({ tokens: s.tokens, emails: s.emails }),
+      partialize: (s) => ({ authenticated: s.authenticated, emails: s.emails }),
     },
   ),
 );

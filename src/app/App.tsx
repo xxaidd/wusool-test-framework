@@ -29,11 +29,20 @@ const MapCanvas = dynamic(
 
 export function App() {
   const { t } = useI18n();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const updateActor = useActorStore((s) => s.updateActor);
   const activePanel = useUIStore((s) => s.activePanel);
   const setActivePanel = useUIStore((s) => s.setActivePanel);
   const checkHealth = useEnvironmentStore((s) => s.checkHealth);
+
+  // Persisted Zustand stores rehydrate from localStorage/sessionStorage on
+  // the client before React hydrates, so store-driven markup must not render
+  // until after mount — otherwise the server HTML and the first client render
+  // diverge and React raises hydration mismatches.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     checkHealth();
@@ -44,16 +53,22 @@ export function App() {
   const [authActor, setAuthActor] = useState<ActorRef | null>(null);
   const pendingCb = useRef<(() => void) | null>(null);
 
+  if (!mounted) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-bg-base text-ink-soft">
+        <div className="text-sm">{t("common.loading")}</div>
+      </div>
+    );
+  }
+
   const requestAuth = (actor: ActorRef, onSuccess: () => void) => {
     pendingCb.current = onSuccess;
     setAuthActor(actor);
   };
 
-  const onAuthSuccess = (actor: ActorRef) => {
-    if (actor.token) {
-      setToken(actor.id, actor.token, actor.credentials?.email);
-      updateActor(actor.id, { authenticated: true, token: actor.token });
-    }
+  const onAuthSuccess = (actorId: string, email: string) => {
+    setAuthenticated(actorId, email);
+    updateActor(actorId, { authenticated: true });
     const cb = pendingCb.current;
     pendingCb.current = null;
     if (cb) cb();

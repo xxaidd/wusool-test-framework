@@ -18,9 +18,14 @@ import {
   ActionMode,
   type EntityKind,
 } from "@/features/actions/domain/action.types";
-import { httpActionRepository } from "@/features/actions/infrastructure/actionRepository";
+import { bffActionRepository } from "@/features/actions/infrastructure/actionRepository";
 import { loadEntity } from "@/features/actions/infrastructure/entityRepository";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
+import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
+import type {
+  SessionRequest,
+  SessionResponse,
+} from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
@@ -31,6 +36,11 @@ import { Select } from "@/shared/components/Select";
 import { Spinner } from "@/shared/components/Spinner";
 import { Textarea } from "@/shared/components/Textarea";
 import { useI18n } from "@/shared/i18n";
+import type {
+  SanitizedRequest,
+  SanitizedResponse,
+} from "@/shared/redaction/redact";
+import { redactRequest } from "@/shared/redaction/redact";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
@@ -54,6 +64,30 @@ function categoryIcon(c: ActionCategory) {
   }
 }
 
+function toSessionRequest(
+  env: BackendEnvironment,
+  req: SanitizedRequest,
+): SessionRequest {
+  const qs =
+    req.query && Object.keys(req.query).length
+      ? `?${new URLSearchParams(req.query).toString()}`
+      : "";
+  return {
+    method: req.method,
+    url: `${env.baseUrl}${req.path}${qs}`,
+    headers: req.headers,
+    body: req.body,
+  };
+}
+
+function toSessionResponse(res: SanitizedResponse): SessionResponse {
+  return {
+    status: res.statusCode,
+    headers: res.headers,
+    body: res.body ?? "",
+  };
+}
+
 export function ActionPanel({
   onRequestAuth,
 }: {
@@ -61,10 +95,11 @@ export function ActionPanel({
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
+  const health = useEnvironmentStore((s) => s.health);
   const selected = useActorStore((s) =>
     s.workspace.find((a) => a.id === s.selectedActorId),
   );
-  const getToken = useAuthStore((s) => s.getToken);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const addEvent = useSessionStore((s) => s.addEvent);
   const actionMode = useUIStore((s) => s.actionMode);
   const setActionMode = useUIStore((s) => s.setActionMode);
@@ -133,17 +168,36 @@ export function ActionPanel({
       selected.lat != null && selected.lng != null
         ? { lat: selected.lat, lng: selected.lng }
         : undefined;
-    const token = getToken(selected.id) || selected.token;
-    const outcome = await runAction({
-      env,
-      actor: selected,
-      action,
-      args,
-      position: pos,
-      token,
-      repo: httpActionRepository,
-      signal: abortRef.current.signal,
-    });
+    let outcome: ActionOutcome;
+    try {
+      outcome = await runAction({
+        env,
+        actor: selected,
+        action,
+        args,
+        position: pos,
+        repo: bffActionRepository,
+        signal: abortRef.current.signal,
+      });
+    } catch (err) {
+      // Cancellation is expected (user clicked cancel); do not record it.
+      if (err instanceof Error && err.name === "AbortError") {
+        setExecuting(false);
+        return;
+      }
+      // Any unexpected infrastructure failure becomes a normal failed outcome
+      // so the session still records it (FR-37) and the UI resets.
+      outcome = {
+        ok: false,
+        needsAuth: false,
+        request: redactRequest({
+          method: action.method,
+          path: buildPath(action, args, selected),
+        }),
+        durationMs: 0,
+        error: err instanceof Error ? err.message : "Unknown error",
+      };
+    }
     setResult(outcome);
     setExecuting(false);
 
@@ -164,8 +218,12 @@ export function ActionPanel({
       status: outcome.ok ? "success" : "failed",
       durationMs: outcome.durationMs,
       statusCode: outcome.statusCode,
-      request: outcome.request,
-      response: outcome.response,
+      request: outcome.request
+        ? toSessionRequest(env, outcome.request)
+        : undefined,
+      response: outcome.response
+        ? toSessionResponse(outcome.response)
+        : undefined,
       error: outcome.error,
       position: pos,
     });
@@ -179,7 +237,7 @@ export function ActionPanel({
     );
   }
 
-  const token = getToken(selected.id) || selected.token;
+  const authed = isAuthenticated(selected.id) || selected.authenticated;
 
   return (
     <div className="flex h-full flex-col">
@@ -192,7 +250,7 @@ export function ActionPanel({
               {t(`actor.${selected.type}`)} · {selected.sublabel}
             </div>
           </div>
-          {token ? (
+          {authed ? (
             <Badge tone="success">✓ {t("actor.authenticated")}</Badge>
           ) : (
             <Badge tone="warning">{t("actor.notAuthenticated")}</Badge>
@@ -330,7 +388,7 @@ export function ActionPanel({
                     value={args[f.id] as string}
                     onSelect={(v) => setArg(f.id, v)}
                     load={(q) =>
-                      loadEntity(env, token, f.entity as EntityKind, q)
+                      loadEntity(env, f.entity as EntityKind, q, selected.id)
                     }
                   />
                 );
@@ -372,7 +430,7 @@ export function ActionPanel({
             })}
 
             <div className="flex gap-2">
-              <Button full onClick={execute} disabled={executing}>
+              <Button full onClick={execute} disabled={executing || !health.ok}>
                 {executing ? <Spinner /> : `▶ ${t("action.execute")}`}
               </Button>
               {executing && (
@@ -381,6 +439,11 @@ export function ActionPanel({
                 </Button>
               )}
             </div>
+            {!health.ok && !executing && (
+              <p className="text-xs text-danger">
+                {t("app.connectionError")} · {t("action.backendUnavailable")}
+              </p>
+            )}
 
             {/* Result */}
             {result && (
