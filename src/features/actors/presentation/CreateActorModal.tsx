@@ -7,6 +7,8 @@ import type {
 } from "@/features/actors/domain/actor.types";
 import { ActorType } from "@/features/actors/domain/actor.types";
 import { createActor } from "@/features/actors/infrastructure/actorRepository";
+import { isAdminAuthRequired } from "@/infrastructure/bff/client";
+import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { Modal, ModalFooter } from "@/shared/components/Modal";
 import { Select } from "@/shared/components/Select";
@@ -22,13 +24,14 @@ import { useEnvironmentStore } from "@/shared/store/environment.store";
 export function CreateActorModal({
   open,
   onClose,
+  onOpenEnvironment,
 }: {
   open: boolean;
   onClose: () => void;
+  onOpenEnvironment: () => void;
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
-  const adminToken = useEnvironmentStore((s) => s.adminToken);
   const addToWorkspace = useActorStore((s) => s.addToWorkspace);
 
   const [type, setType] = useState<AT>(ActorType.Passenger);
@@ -37,8 +40,9 @@ export function CreateActorModal({
   const [password, setPassword] = useState("");
   const [plate, setPlate] = useState("");
   const [capacity, setCapacity] = useState("50");
-  const [loading, _setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [adminRequired, setAdminRequired] = useState(false);
 
   const reset = () => {
     setName("");
@@ -47,15 +51,18 @@ export function CreateActorModal({
     setPlate("");
     setCapacity("50");
     setError(undefined);
+    setAdminRequired(false);
   };
 
   const submit = async () => {
     setError(undefined);
+    setAdminRequired(false);
+    setLoading(true);
     try {
       let actor: ActorRef;
       if (type === ActorType.Passenger) {
         CreatePassengerSchema.parse({ email, password, name });
-        actor = await createActor(env, adminToken, {
+        actor = await createActor(env, {
           type,
           name: name || email,
           email,
@@ -63,7 +70,7 @@ export function CreateActorModal({
         });
       } else if (type === ActorType.Driver) {
         CreateDriverSchema.parse({ email, password, name });
-        actor = await createActor(env, adminToken, {
+        actor = await createActor(env, {
           type,
           name,
           email,
@@ -74,7 +81,7 @@ export function CreateActorModal({
           plateNumber: plate,
           capacity: capacity ? Number(capacity) : undefined,
         });
-        actor = await createActor(env, adminToken, {
+        actor = await createActor(env, {
           type,
           plateNumber: plate,
           capacityNumber: capacity ? Number(capacity) : undefined,
@@ -84,7 +91,14 @@ export function CreateActorModal({
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.networkError"));
+      if (isAdminAuthRequired(err)) {
+        setAdminRequired(true);
+        setError(t("actor.adminRequired"));
+      } else {
+        setError(err instanceof Error ? err.message : t("common.networkError"));
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -158,21 +172,33 @@ export function CreateActorModal({
         )}
 
         {error && (
-          <div className="rounded-lg border border-danger-container bg-danger-container px-3 py-2 text-sm text-danger">
-            {error}
+          <div className="space-y-2">
+            <div className="rounded-lg border border-danger-container bg-danger-container px-3 py-2 text-sm text-danger">
+              {error}
+            </div>
+            {adminRequired && (
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={onOpenEnvironment}
+                title={t("actor.configureAdmin")}
+              >
+                {t("actor.configureAdmin")}
+              </Button>
+            )}
           </div>
         )}
 
         {type === ActorType.Passenger && (
           <p className="text-xs text-ink-soft">
-            Passengers register anonymously and are authenticated immediately.
+            {t("actor.passengerCreatesAuthenticated")}
           </p>
         )}
         {type !== ActorType.Passenger && (
           <p className="text-xs text-ink-soft">
             {type === ActorType.Driver
-              ? "Requires an admin token to create the driver role."
-              : "Requires an admin token to create the bus."}
+              ? t("actor.requiresAdminDriver")
+              : t("actor.requiresAdminBus")}
           </p>
         )}
       </div>

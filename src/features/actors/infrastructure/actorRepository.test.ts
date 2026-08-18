@@ -3,7 +3,7 @@ import type { BackendEnvironment } from "@/features/environments/domain/environm
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 import { bffRequest } from "@/infrastructure/bff/client";
 import { ActorSource, ActorType } from "../domain/actor.types";
-import { createActor, discoverActors } from "./actorRepository";
+import { configureAdmin, createActor, discoverActors } from "./actorRepository";
 
 vi.mock("@/infrastructure/bff/client", async (importActual) => {
   const actual =
@@ -24,12 +24,12 @@ describe("discoverActors", () => {
     mockedRequest.mockReset();
   });
 
-  it("forwards the environment, admin token, and requested types to the BFF", async () => {
+  it("forwards the environment and requested types to the BFF", async () => {
     mockedRequest.mockResolvedValue([
       { id: "11", type: ActorType.Bus, label: "ABC" },
     ]);
 
-    const actors = await discoverActors(env, "admin-token", [
+    const actors = await discoverActors(env, [
       ActorType.Passenger,
       ActorType.Driver,
       ActorType.Bus,
@@ -37,7 +37,6 @@ describe("discoverActors", () => {
 
     expect(mockedRequest).toHaveBeenCalledWith("/api/wusool/actors/search", {
       env: { envId: "local", baseUrl: undefined },
-      adminToken: "admin-token",
       types: [ActorType.Passenger, ActorType.Driver, ActorType.Bus],
     });
     expect(actors).toHaveLength(1);
@@ -61,7 +60,7 @@ describe("createActor", () => {
       raw: { email: "p@x" },
     });
 
-    const actor = await createActor(env, "admin-token", {
+    const actor = await createActor(env, {
       type: ActorType.Passenger,
       email: "p@x",
       password: "pass123",
@@ -70,7 +69,6 @@ describe("createActor", () => {
 
     expect(mockedRequest).toHaveBeenCalledWith("/api/wusool/actors", {
       env: { envId: "local", baseUrl: undefined },
-      adminToken: "admin-token",
       input: {
         type: ActorType.Passenger,
         email: "p@x",
@@ -82,6 +80,41 @@ describe("createActor", () => {
       id: "u1",
       type: ActorType.Passenger,
       authenticated: true,
+    });
+  });
+});
+
+describe("configureAdmin", () => {
+  beforeEach(() => {
+    mockedRequest.mockReset();
+  });
+
+  it("submits credentials to the admin login route", async () => {
+    mockedRequest.mockResolvedValue({ configured: true });
+
+    await configureAdmin(env, {
+      mode: "credentials",
+      email: "admin@x",
+      password: "secret",
+    });
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/wusool/admin/login", {
+      env: { envId: "local", baseUrl: undefined },
+      mode: "credentials",
+      email: "admin@x",
+      password: "secret",
+    });
+  });
+
+  it("submits a pasted token to the admin login route", async () => {
+    mockedRequest.mockResolvedValue({ configured: true });
+
+    await configureAdmin(env, { mode: "token", token: "jwt-abc" });
+
+    expect(mockedRequest).toHaveBeenCalledWith("/api/wusool/admin/login", {
+      env: { envId: "local", baseUrl: undefined },
+      mode: "token",
+      token: "jwt-abc",
     });
   });
 });

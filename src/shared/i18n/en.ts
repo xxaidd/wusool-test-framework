@@ -32,6 +32,20 @@ export const en = {
     urlRequired: "Enter a backend URL.",
     urlInvalid:
       "Invalid backend URL. Use a public http/https address; private and loopback networks are not allowed.",
+    adminTitle: "Admin session",
+    adminConfigured: "Admin configured",
+    adminNotConfigured: "Admin not configured",
+    adminEmail: "Admin email",
+    adminPassword: "Admin password",
+    adminToken: "Admin token (optional)",
+    adminCredsMode: "Login with credentials",
+    adminTokenMode: "Paste token",
+    adminHint:
+      "Used for actor discovery and privileged creation. Credentials are stored server-side and the token is refreshed automatically on expiry.",
+    adminNeeded:
+      "Admin authentication is required for discovery and privileged creation.",
+    adminConfigureFailed: "Failed to configure admin authentication.",
+    adminUpdated: "Admin authentication configured.",
   },
   actor: {
     title: "Actors",
@@ -70,6 +84,14 @@ export const en = {
     loading: "Loading…",
     results: "results",
     source: { existing: "Existing", test: "Test" },
+    adminRequired:
+      "Admin authentication is required to discover or create actors.",
+    configureAdmin: "Configure admin",
+    passengerCreatesAuthenticated:
+      "Passengers register anonymously and are authenticated immediately.",
+    requiresAdminDriver:
+      "Requires admin authentication to create the driver role.",
+    requiresAdminBus: "Requires admin authentication to create the bus.",
   },
   action: {
     title: "Actions",

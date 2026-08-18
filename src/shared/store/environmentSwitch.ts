@@ -25,7 +25,6 @@ export interface SwitchEnvironmentResult {
  */
 export async function switchEnvironment(
   target: BackendEnvironment,
-  adminToken: string,
   opts: { eventLabel?: string } = {},
 ): Promise<SwitchEnvironmentResult> {
   const envStore = useEnvironmentStore.getState();
@@ -34,7 +33,6 @@ export async function switchEnvironment(
     current.id !== target.id || current.baseUrl !== target.baseUrl;
 
   if (!changed) {
-    useEnvironmentStore.setState({ adminToken });
     return { ok: true };
   }
 
@@ -67,7 +65,7 @@ export async function switchEnvironment(
     eventLabel: opts.eventLabel ?? "Switch environment",
   });
 
-  useEnvironmentStore.setState({ adminToken });
+  useEnvironmentStore.setState({ adminConfigured: false });
   useEnvironmentStore.getState().setEnv(target);
 
   return { ok: true };

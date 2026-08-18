@@ -1,14 +1,14 @@
 import { z } from "zod";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
+import { adminRequest } from "@/infrastructure/server/adminAuth";
+import { getDevCredentialVault } from "@/infrastructure/server/credentialVaultDev";
 import { resolveEnvironment } from "@/infrastructure/server/environmentResolver";
-import { serverRequest } from "@/infrastructure/server/wusoolServerClient";
 import { fail, ok } from "../../helpers";
 import { actorTypeSchema, envInputSchema } from "../../schemas";
 
 const searchSchema = z.object({
   env: envInputSchema,
-  adminToken: z.string().optional(),
   types: z.array(actorTypeSchema).min(1),
 });
 
@@ -72,11 +72,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const body = searchSchema.parse(await request.json());
     const env = await resolveEnvironment(body.env);
+    const vault = getDevCredentialVault();
     const out: ActorRef[] = [];
 
     if (body.types.includes(ActorType.Bus)) {
-      const buses = await serverRequest(env, "/api/v1/buses", {
-        token: body.adminToken,
+      const buses = await adminRequest(vault, env, "/api/v1/buses", {
         params: { pageSize: 100 },
       });
       const items = (buses.data as { items?: unknown[] } | null)?.items ?? [];
@@ -88,8 +88,7 @@ export async function POST(request: Request): Promise<Response> {
       body.types.includes(ActorType.Passenger) ||
       body.types.includes(ActorType.Driver)
     ) {
-      const users = await serverRequest(env, "/api/v1/admin/users", {
-        token: body.adminToken,
+      const users = await adminRequest(vault, env, "/api/v1/admin/users", {
         params: { pageSize: 100 },
       });
       const items = (users.data as { items?: unknown[] } | null)?.items ?? [];

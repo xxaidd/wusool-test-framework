@@ -11,6 +11,9 @@ import type {
 export class DevCredentialVault implements CredentialVault {
   private readonly contexts = new Map<string, AuthContext>();
 
+  /** Reserved actor id under which each environment's admin context lives. */
+  private readonly adminActorId = "__admin__";
+
   private key(actorId: string, envId: string): string {
     return `${envId}:${actorId}`;
   }
@@ -34,6 +37,18 @@ export class DevCredentialVault implements CredentialVault {
 
   async resolve(actorId: string, envId: string): Promise<AuthContext | null> {
     return this.contexts.get(this.key(actorId, envId)) ?? null;
+  }
+
+  async setAdminContext(envId: string, context: AuthContext): Promise<void> {
+    this.contexts.set(this.key(this.adminActorId, envId), context);
+  }
+
+  async resolveAdminContext(envId: string): Promise<AuthContext | null> {
+    return this.contexts.get(this.key(this.adminActorId, envId)) ?? null;
+  }
+
+  async clearAdminContext(envId: string): Promise<void> {
+    this.contexts.delete(this.key(this.adminActorId, envId));
   }
 
   async clear(actorId: string, envId: string): Promise<void> {

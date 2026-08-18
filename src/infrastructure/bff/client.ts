@@ -15,6 +15,11 @@ export class BffError extends Error {
   }
 }
 
+/** Whether an error means the admin/session-manager auth must be configured. */
+export function isAdminAuthRequired(err: unknown): boolean {
+  return err instanceof BffError && err.code === "ADMIN_AUTH_REQUIRED";
+}
+
 /** Browser-sent environment reference (custom URLs validated server-side). */
 export function envRef(env: BackendEnvironment): {
   envId: string;

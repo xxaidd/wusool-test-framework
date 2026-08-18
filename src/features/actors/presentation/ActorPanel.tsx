@@ -20,6 +20,7 @@ import type {
 import { ActorType } from "@/features/actors/domain/actor.types";
 import { discoverActors } from "@/features/actors/infrastructure/actorRepository";
 import { logout } from "@/features/actors/infrastructure/authService";
+import { isAdminAuthRequired } from "@/infrastructure/bff/client";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
@@ -50,13 +51,14 @@ function ActorAvatar({ type }: { type: AT }) {
 export function ActorPanel({
   onOpenCreate,
   onRequestAuth,
+  onOpenEnvironment,
 }: {
   onOpenCreate: () => void;
   onRequestAuth: (actor: ActorRef, onSuccess: () => void) => void;
+  onOpenEnvironment: () => void;
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
-  const adminToken = useEnvironmentStore((s) => s.adminToken);
   const workspace = useActorStore((s) => s.workspace);
   const discovered = useActorStore((s) => s.discovered);
   const setDiscovered = useActorStore((s) => s.setDiscovered);
@@ -74,6 +76,7 @@ export function ActorPanel({
 
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | undefined>();
+  const [adminRequired, setAdminRequired] = useState(false);
 
   const onSignOut = async (a: ActorRef) => {
     try {
@@ -89,18 +92,24 @@ export function ActorPanel({
   const onDiscover = async () => {
     setDiscovering(true);
     setDiscoverError(undefined);
+    setAdminRequired(false);
     try {
       const types: AT[] =
         typeFilter === "all"
           ? [ActorType.Passenger, ActorType.Driver, ActorType.Bus]
           : [typeFilter];
-      const found = await discoverActors(env, adminToken, types);
+      const found = await discoverActors(env, types);
       setDiscovered(found);
       if (found.length === 0) setDiscoverError("No actors found");
     } catch (err) {
-      setDiscoverError(
-        err instanceof Error ? err.message : t("common.networkError"),
-      );
+      if (isAdminAuthRequired(err)) {
+        setAdminRequired(true);
+        setDiscoverError(t("actor.adminRequired"));
+      } else {
+        setDiscoverError(
+          err instanceof Error ? err.message : t("common.networkError"),
+        );
+      }
     } finally {
       setDiscovering(false);
     }
@@ -152,7 +161,19 @@ export function ActorPanel({
           </div>
         )}
         {discoverError && !discovering && (
-          <p className="px-1 text-xs text-danger">{discoverError}</p>
+          <div className="space-y-1.5">
+            <p className="px-1 text-xs text-danger">{discoverError}</p>
+            {adminRequired && (
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={onOpenEnvironment}
+                title={t("actor.configureAdmin")}
+              >
+                {t("actor.configureAdmin")}
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

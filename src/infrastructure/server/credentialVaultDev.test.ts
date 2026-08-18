@@ -54,6 +54,46 @@ describe("DevCredentialVault", () => {
     await expect(vault.resolve("a1", "local")).resolves.toBeNull();
   });
 
+  it("stores and resolves admin contexts per environment", async () => {
+    const vault = new DevCredentialVault();
+    await vault.setAdminContext("local", {
+      accessToken: "admin-tok",
+      refreshToken: "admin-refresh",
+    });
+    await vault.setAdminContext("dev", { accessToken: "admin-tok-dev" });
+
+    await expect(vault.resolveAdminContext("local")).resolves.toEqual({
+      accessToken: "admin-tok",
+      refreshToken: "admin-refresh",
+    });
+    await expect(vault.resolveAdminContext("dev")).resolves.toEqual({
+      accessToken: "admin-tok-dev",
+    });
+    await expect(vault.resolveAdminContext("missing")).resolves.toBeNull();
+  });
+
+  it("clears a single admin context without touching actor contexts", async () => {
+    const vault = new DevCredentialVault();
+    await vault.setAdminContext("local", { accessToken: "admin" });
+    await vault.setContext("a1", "local", { accessToken: "actor" });
+    await vault.clearAdminContext("local");
+    await expect(vault.resolveAdminContext("local")).resolves.toBeNull();
+    await expect(vault.resolve("a1", "local")).resolves.toEqual({
+      accessToken: "actor",
+    });
+  });
+
+  it("clears admin contexts with their environment", async () => {
+    const vault = new DevCredentialVault();
+    await vault.setAdminContext("local", { accessToken: "admin" });
+    await vault.setAdminContext("dev", { accessToken: "admin" });
+    await vault.clearForEnvironment("local");
+    await expect(vault.resolveAdminContext("local")).resolves.toBeNull();
+    await expect(vault.resolveAdminContext("dev")).resolves.toEqual({
+      accessToken: "admin",
+    });
+  });
+
   it("shares a singleton and resets it via resetDevCredentialVault", async () => {
     const first = (
       await import("./credentialVaultDev")

@@ -24,18 +24,25 @@ describe("useEnvironmentStore", () => {
         label: "Local",
         baseUrl: "http://localhost:5002",
       },
-      adminToken: "",
+      adminConfigured: false,
       health: { ok: false, status: 0, checking: false },
     });
   });
 
-  it("never persists the admin token", async () => {
-    useEnvironmentStore.setState({ adminToken: "admin-jwt" });
+  it("never persists the admin configuration flag", async () => {
+    useEnvironmentStore.setState({ adminConfigured: true });
     const payload = persistedPayload();
+    expect(payload).not.toContain("adminConfigured");
     expect(payload).not.toContain("adminToken");
-    expect(payload).not.toContain("admin-jwt");
     // The environment itself is still persisted.
     expect(payload).toContain("local");
+  });
+
+  it("tracks the admin configuration flag in memory", () => {
+    useEnvironmentStore.getState().setAdminConfigured(true);
+    expect(useEnvironmentStore.getState().adminConfigured).toBe(true);
+    useEnvironmentStore.getState().setAdminConfigured(false);
+    expect(useEnvironmentStore.getState().adminConfigured).toBe(false);
   });
 
   it("setEnv resets health and probes the new environment", async () => {

@@ -128,11 +128,12 @@ describe("auth security surface", () => {
     });
   });
 
-  it("the persisted environment payload never contains the admin token", () => {
-    useEnvironmentStore.setState({ adminToken: "admin-jwt-secret" });
+  it("the persisted environment payload never contains admin configuration", () => {
+    useEnvironmentStore.setState({ adminConfigured: true });
 
     const payload = sessionStorageValue("wusool-environment");
 
+    expect(payload).not.toMatch(/"adminConfigured"\s*:/);
     expect(payload).not.toMatch(/"adminToken"\s*:/);
     expect(payload).not.toContain("admin-jwt-secret");
   });
