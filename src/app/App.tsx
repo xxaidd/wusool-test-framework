@@ -1,5 +1,6 @@
 "use client";
 
+import { Activity, Wrench } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { ActionPanel } from "@/features/actions/presentation/ActionPanel";
@@ -100,12 +101,13 @@ export function App() {
                 key={p}
                 type="button"
                 onClick={() => setActivePanel(p)}
-                className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+                className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-colors ${
                   activePanel === p
-                    ? "border-b-2 border-primary text-primary"
-                    : "text-ink-soft hover:text-ink"
+                    ? "border-b-2 border-primary bg-primary-container/40 text-primary"
+                    : "text-ink-soft hover:bg-surface-variant hover:text-ink"
                 }`}
               >
+                {p === "actors" ? <Wrench size={16} /> : <Activity size={16} />}
                 {t(p === "actors" ? "nav.workspace" : "nav.session")}
               </button>
             ))}

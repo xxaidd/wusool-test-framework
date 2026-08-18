@@ -1,6 +1,7 @@
 "use client";
 
 import L from "leaflet";
+import { Check, Pen, Play, Square, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   MapContainer,
@@ -21,15 +22,17 @@ import { useEnvironmentStore } from "@/shared/store/environment.store";
 import { useSessionStore } from "@/shared/store/session.store";
 
 const ICONS: Record<string, string> = {
-  passenger: "🧍",
-  driver: "🧑‍✈️",
-  bus: "🚌",
+  passenger:
+    '<circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 0 0-16 0"></path>',
+  driver:
+    '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+  bus: '<path d="M8 6v6"></path><path d="M15 6v6"></path><path d="M2 12h19.6"></path><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"></path><circle cx="7" cy="18" r="2"></circle><circle cx="17" cy="18" r="2"></circle>',
 };
 
 function markerIcon(type: string) {
   return L.divIcon({
     className: "",
-    html: `<div class="actor-marker" style="width:30px;height:30px;background:${actorColors[type] || tokens.primary}">${ICONS[type] || "•"}</div>`,
+    html: `<div class="actor-marker" style="width:30px;height:30px;background:${actorColors[type] || tokens.primary}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[type] || ICONS.passenger}</svg></div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });
@@ -203,12 +206,14 @@ export function MapCanvas() {
       <div className="absolute start-3 top-3 z-[500] flex flex-col gap-1.5 rounded-xl border border-border bg-surface/95 p-1.5 shadow-md backdrop-blur">
         {!drawing ? (
           <Button variant="subtle" size="sm" onClick={startDraw}>
-            ✏️ {t("map.startDrawing")}
+            <Pen size={15} />
+            {t("map.startDrawing")}
           </Button>
         ) : (
           <>
             <Button size="sm" onClick={finishDraw} disabled={route.length < 2}>
-              ✔ {t("map.finishDrawing")}
+              <Check size={15} />
+              {t("map.finishDrawing")}
             </Button>
             <Button
               variant="ghost"
@@ -218,7 +223,8 @@ export function MapCanvas() {
                 setRoute([]);
               }}
             >
-              ✕ {t("map.cancelDrawing")}
+              <X size={15} />
+              {t("map.cancelDrawing")}
             </Button>
           </>
         )}
@@ -236,9 +242,17 @@ export function MapCanvas() {
             }}
             disabled={!selected}
           >
-            {following
-              ? `⏹ ${t("map.stopFollowing")}`
-              : `▶ ${t("map.followRoute")}`}
+            {following ? (
+              <>
+                <Square size={15} />
+                {t("map.stopFollowing")}
+              </>
+            ) : (
+              <>
+                <Play size={15} />
+                {t("map.followRoute")}
+              </>
+            )}
           </Button>
         )}
       </div>
@@ -250,8 +264,9 @@ export function MapCanvas() {
         </div>
       )}
       {following && followActorId && (
-        <div className="absolute end-3 top-3 z-[500] rounded-lg border border-success bg-success-container px-3 py-1.5 text-xs font-medium text-success shadow">
-          ▶ {t("map.following")}
+        <div className="absolute end-3 top-3 z-[500] flex items-center gap-1.5 rounded-lg border border-success bg-success-container px-3 py-1.5 text-xs font-medium text-success shadow">
+          <Play size={13} />
+          {t("map.following")}
         </div>
       )}
 

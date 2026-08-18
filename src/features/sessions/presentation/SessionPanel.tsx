@@ -1,5 +1,6 @@
 "use client";
 
+import { Clapperboard, Download, Pause, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
@@ -52,15 +53,17 @@ export function SessionPanel() {
         <div className="flex items-center gap-1">
           {!recording ? (
             <Button size="sm" onClick={start}>
-              ▶ {t("session.start")}
+              <Play size={16} />
+              {t("session.start")}
             </Button>
           ) : (
             <Button
               variant="subtle"
               size="sm"
               onClick={paused ? resume : pause}
+              title={paused ? t("session.resume") : t("session.pause")}
             >
-              {paused ? "▶" : "⏸"}
+              {paused ? <Play size={16} /> : <Pause size={16} />}
             </Button>
           )}
           <Button
@@ -68,8 +71,9 @@ export function SessionPanel() {
             size="sm"
             onClick={clear}
             disabled={events.length === 0}
+            title={t("common.clear")}
           >
-            🗑
+            <Trash2 size={16} />
           </Button>
           <Button
             variant="secondary"
@@ -77,7 +81,8 @@ export function SessionPanel() {
             onClick={exportSession}
             disabled={events.length === 0}
           >
-            ⬇ {t("session.export")}
+            <Download size={16} />
+            {t("session.export")}
           </Button>
         </div>
       </div>
@@ -85,7 +90,7 @@ export function SessionPanel() {
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {events.length === 0 && (
           <EmptyState
-            icon="🎬"
+            icon={Clapperboard}
             title={t("session.empty")}
             hint={t("session.start")}
           />

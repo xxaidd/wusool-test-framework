@@ -1,10 +1,17 @@
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 
+const LOCAL_URL =
+  process.env.NEXT_PUBLIC_WUSOOL_LOCAL_URL ?? "http://localhost:5002";
+const DEV_URL =
+  process.env.NEXT_PUBLIC_WUSOOL_DEV_URL ?? "https://api-dev.wusool.to/";
+const STAGING_URL =
+  process.env.NEXT_PUBLIC_WUSOOL_STAGING_URL ?? "https://api-dev.wusool.to/";
+
 export const DEFAULT_ENV: BackendEnvironment = {
   id: BackendEnvId.Local,
   label: "Local",
-  baseUrl: "http://localhost:5002",
+  baseUrl: LOCAL_URL,
 };
 
 export const envPresets: BackendEnvironment[] = [
@@ -12,11 +19,11 @@ export const envPresets: BackendEnvironment[] = [
   {
     id: BackendEnvId.Development,
     label: "Development",
-    baseUrl: "http://localhost:5002",
+    baseUrl: DEV_URL,
   },
   {
     id: BackendEnvId.Staging,
     label: "Staging",
-    baseUrl: "http://localhost:5002",
+    baseUrl: STAGING_URL,
   },
 ];

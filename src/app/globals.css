@@ -70,10 +70,25 @@
   --color-on-primary-container: var(--color-on-primary-container);
 
   --color-secondary: var(--color-secondary);
+  --color-secondary-light: var(--color-secondary-light);
+  --color-secondary-dark: var(--color-secondary-dark);
+  --color-secondary-container: var(--color-secondary-container);
+  --color-on-secondary: var(--color-on-secondary);
+  --color-on-secondary-container: var(--color-on-secondary-container);
+
+  --color-tertiary: var(--color-tertiary);
+  --color-tertiary-light: var(--color-tertiary-light);
+  --color-tertiary-dark: var(--color-tertiary-dark);
+  --color-tertiary-container: var(--color-tertiary-container);
+
   --color-success: var(--color-success);
+  --color-success-container: var(--color-success-container);
   --color-warning: var(--color-warning);
+  --color-warning-container: var(--color-warning-container);
   --color-danger: var(--color-danger);
+  --color-danger-container: var(--color-danger-container);
   --color-info: var(--color-info);
+  --color-info-container: var(--color-info-container);
 
   --color-bg-base: var(--color-bg-base);
   --color-surface: var(--color-surface);
