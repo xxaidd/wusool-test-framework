@@ -269,11 +269,7 @@ export function EnvironmentModal({
               <div className="text-xs font-semibold text-ink">
                 {t("environment.adminTitle")}
               </div>
-              <Button
-                variant="subtle"
-                size="sm"
-                onClick={() => checkHealth()}
-              >
+              <Button variant="subtle" size="sm" onClick={() => checkHealth()}>
                 {t("environment.testConnection")}
               </Button>
             </div>
@@ -330,7 +326,9 @@ export function EnvironmentModal({
               />
             )}
 
-            <p className="text-xs text-ink-soft">{t("environment.adminHint")}</p>
+            <p className="text-xs text-ink-soft">
+              {t("environment.adminHint")}
+            </p>
           </div>
         </div>
       </Modal>

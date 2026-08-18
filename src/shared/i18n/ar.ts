@@ -45,8 +45,7 @@ export const ar: Messages = {
     adminTokenMode: "لصق الرمز",
     adminHint:
       "يُستخدم لاكتشاف الجهات الفاعلة وإنشاءها بصلاحيات. تُخزَّن بيانات الاعتماد على الخادم ويُحدَّث الرمز تلقائيًا عند انتهاء صلاحيته.",
-    adminNeeded:
-      "مصادقة المسؤول مطلوبة لاكتشاف الجهات الفاعلة وإنشائها.",
+    adminNeeded: "مصادقة المسؤول مطلوبة لاكتشاف الجهات الفاعلة وإنشائها.",
     adminConfigureFailed: "تعذّر إعداد مصادقة المسؤول.",
     adminUpdated: "تم إعداد مصادقة المسؤول.",
   },
@@ -87,13 +86,10 @@ export const ar: Messages = {
     loading: "جارٍ التحميل…",
     results: "نتيجة",
     source: { existing: "موجودة", test: "اختبار" },
-    adminRequired:
-      "مصادقة المسؤول مطلوبة لاكتشاف الجهات الفاعلة أو إنشائها.",
+    adminRequired: "مصادقة المسؤول مطلوبة لاكتشاف الجهات الفاعلة أو إنشائها.",
     configureAdmin: "إعداد المسؤول",
-    passengerCreatesAuthenticated:
-      "يسجّل الركاب بشكل مجهول ويتم مصادقتهم فورًا.",
-    requiresAdminDriver:
-      "يتطلب مصادقة المسؤول لإنشاء دور السائق.",
+    passengerCreatesAuthenticated: "يسجّل الركاب بشكل مجهول ويتم مصادقتهم فورًا.",
+    requiresAdminDriver: "يتطلب مصادقة المسؤول لإنشاء دور السائق.",
     requiresAdminBus: "يتطلب مصادقة المسؤول لإنشاء الحافلة.",
   },
   action: {

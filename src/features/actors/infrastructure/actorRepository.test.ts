@@ -3,11 +3,7 @@ import type { BackendEnvironment } from "@/features/environments/domain/environm
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 import { bffRequest } from "@/infrastructure/bff/client";
 import { ActorSource, ActorType } from "../domain/actor.types";
-import {
-  configureAdmin,
-  createActor,
-  discoverActors,
-} from "./actorRepository";
+import { configureAdmin, createActor, discoverActors } from "./actorRepository";
 
 vi.mock("@/infrastructure/bff/client", async (importActual) => {
   const actual =

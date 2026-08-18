@@ -39,10 +39,7 @@ export class DevCredentialVault implements CredentialVault {
     return this.contexts.get(this.key(actorId, envId)) ?? null;
   }
 
-  async setAdminContext(
-    envId: string,
-    context: AuthContext,
-  ): Promise<void> {
+  async setAdminContext(envId: string, context: AuthContext): Promise<void> {
     this.contexts.set(this.key(this.adminActorId, envId), context);
   }
 
