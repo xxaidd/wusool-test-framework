@@ -43,7 +43,7 @@ function MapBridge({ onReady }: { onReady: (map: L.Map) => void }) {
   return null;
 }
 
-const DEFAULT_CENTER: [number, number] = [24.7136, 46.6753]; // Riyadh
+const DEFAULT_CENTER: [number, number] = [32.027, 44.3887]; // University of Kufa
 
 export function MapCanvas() {
   const { t } = useI18n();
@@ -132,7 +132,7 @@ export function MapCanvas() {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop target for placing actors on the map
     <div
-      className="relative h-full w-full"
+      className="relative isolate h-full w-full"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();

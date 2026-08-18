@@ -20,3 +20,17 @@ export async function login(
     isDriver,
   });
 }
+
+/**
+ * Clear a single actor's server-side auth context (explicit sign-out), or the
+ * whole environment's contexts when `actorId` is omitted (environment switch).
+ */
+export async function logout(
+  env: BackendEnvironment,
+  actorId?: string,
+): Promise<void> {
+  await bffRequest("/api/wusool/auth/logout", {
+    env: envRef(env),
+    ...(actorId ? { actorId } : {}),
+  });
+}

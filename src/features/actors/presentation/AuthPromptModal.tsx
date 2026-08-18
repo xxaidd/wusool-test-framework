@@ -19,11 +19,12 @@ export function AuthPromptModal({
   open: boolean;
   actor: ActorRef | null;
   onClose: () => void;
-  onAuthenticated: (actor: ActorRef) => void;
+  onAuthenticated: (actorId: string, email: string) => void;
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
-  const [email, setEmail] = useState(actor?.credentials?.email ?? "");
+  const initialEmail = actor?.sublabel?.includes("@") ? actor.sublabel : "";
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -40,11 +41,7 @@ export function AuthPromptModal({
     setLoading(true);
     try {
       await login(env, parsed.data, actor.type === ActorType.Driver, actor.id);
-      onAuthenticated({
-        ...actor,
-        credentials: { email, password },
-        authenticated: true,
-      });
+      onAuthenticated(actor.id, email);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.unauthorized"));

@@ -58,6 +58,7 @@ export const ar: Messages = {
     credentials: "بيانات الاعتماد",
     authenticated: "مصادق عليها",
     authenticate: "مصادقة",
+    signOut: "تسجيل الخروج",
     notAuthenticated: "غير مصادق عليها",
     selectActor: "اختر جهة فاعلة لتنفيذ الإجراءات",
     noActors: "لا توجد جهات فاعلة في مساحة العمل بعد.",

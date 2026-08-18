@@ -3,6 +3,7 @@ import type { HttpMethod } from "@/features/actions/domain/action.types";
 import type { Credentials } from "@/features/actors/domain/actor.types";
 import type { AuthTokens } from "@/features/actors/domain/auth.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
+import { extractExpiry } from "./jwtExpiry";
 
 /** Header name used to propagate the framework correlation id to the backend. */
 export const CORRELATION_HEADER = "x-correlation-id";
@@ -211,10 +212,12 @@ export async function serverLogin(
   };
   const readString = (value: unknown): string | undefined =>
     typeof value === "string" && value ? value : undefined;
+  const accessToken = readString(body.accessToken ?? body.token) ?? "";
   return {
-    accessToken: readString(body.accessToken ?? body.token) ?? "",
+    accessToken,
     refreshToken: readString(body.refreshToken),
     tokenType: readString(body.tokenType),
+    expiresAt: extractExpiry(accessToken),
   };
 }
 
@@ -240,10 +243,12 @@ export async function serverRegister(
   };
   const readString = (value: unknown): string | undefined =>
     typeof value === "string" && value ? value : undefined;
+  const accessToken = readString(body.accessToken ?? body.token) ?? "";
   return {
     tokens: {
-      accessToken: readString(body.accessToken ?? body.token) ?? "",
+      accessToken,
       refreshToken: readString(body.refreshToken),
+      expiresAt: extractExpiry(accessToken),
     },
     userId: readString(body.user?.userId),
   };

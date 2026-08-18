@@ -19,9 +19,6 @@ export interface ActorRef {
   type: ActorType;
   label: string;
   sublabel?: string;
-  /** Set once credentials are supplied for JIT authentication. */
-  credentials?: Credentials;
-  token?: string;
   authenticated: boolean;
   lat?: number;
   lng?: number;

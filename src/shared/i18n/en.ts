@@ -55,6 +55,7 @@ export const en = {
     credentials: "Credentials",
     authenticated: "Authenticated",
     authenticate: "Authenticate",
+    signOut: "Sign out",
     notAuthenticated: "Not authenticated",
     selectActor: "Select an actor to run actions",
     noActors: "No actors in the workspace yet.",

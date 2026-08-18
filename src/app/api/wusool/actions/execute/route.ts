@@ -55,7 +55,8 @@ export async function POST(request: Request): Promise<Response> {
     let token: string | undefined;
     if (action.requiresAuth) {
       const ctx = await vault.resolve(actor.id, env.id);
-      token = ctx?.accessToken;
+      const expired = ctx?.expiresAt != null && ctx.expiresAt <= Date.now();
+      if (ctx && !expired) token = ctx.accessToken;
     }
 
     const repo = createServerActionRepository(correlationId);

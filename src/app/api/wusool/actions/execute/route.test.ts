@@ -58,6 +58,50 @@ describe("POST /api/wusool/actions/execute", () => {
     expect(mockedServerRequest).not.toHaveBeenCalled();
   });
 
+  it("returns needs-auth for an expired vault context without calling the backend", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "stale-token",
+      expiresAt: Date.now() - 60_000,
+    });
+
+    const res = await POST(
+      req({ ...base, actionId: "driver.startTrip", args: { id: "42" } }),
+    );
+    const json = (await res.json()) as {
+      ok: boolean;
+      data: { needsAuth: boolean; ok: boolean };
+    };
+
+    expect(json.ok).toBe(true);
+    expect(json.data.needsAuth).toBe(true);
+    expect(json.data.ok).toBe(false);
+    expect(mockedServerRequest).not.toHaveBeenCalled();
+  });
+
+  it("executes with a vault context that has not expired yet", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "tok-fresh",
+      expiresAt: Date.now() + 60_000,
+    });
+    mockedServerRequest.mockResolvedValue({
+      status: 200,
+      data: { items: [] },
+      headers: {},
+    });
+
+    const res = await POST(
+      req({ ...base, actionId: "driver.myShifts", args: {} }),
+    );
+    const json = (await res.json()) as { data: { ok: boolean } };
+
+    expect(json.data.ok).toBe(true);
+    expect(mockedServerRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://localhost:5002" }),
+      "/api/v1/shifts/me",
+      expect.objectContaining({ token: "tok-fresh" }),
+    );
+  });
+
   it("executes an authenticated action with the vault token", async () => {
     await getDevCredentialVault().setContext("7", "local", {
       accessToken: "tok",

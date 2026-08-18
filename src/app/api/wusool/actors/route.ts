@@ -44,6 +44,7 @@ export async function POST(request: Request): Promise<Response> {
       await vault.setContext(id, env.id, {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt,
       });
       const actor: ActorRef = {
         id,

@@ -7,6 +7,7 @@ import type {
 } from "@/features/actors/domain/actor.types";
 import { ActorType } from "@/features/actors/domain/actor.types";
 import { discoverActors } from "@/features/actors/infrastructure/actorRepository";
+import { logout } from "@/features/actors/infrastructure/authService";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
@@ -47,9 +48,21 @@ export function ActorPanel({
   const typeFilter = useActorStore((s) => s.typeFilter);
   const setTypeFilter = useActorStore((s) => s.setTypeFilter);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const clearAuth = useAuthStore((s) => s.clear);
 
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | undefined>();
+
+  const onSignOut = async (a: ActorRef) => {
+    try {
+      await logout(env, a.id);
+    } catch {
+      // Best-effort server-side clear; the UI is reset regardless so the
+      // next action prompts for authentication again.
+    }
+    clearAuth(a.id);
+    updateActor(a.id, { authenticated: false });
+  };
 
   const onDiscover = async () => {
     setDiscovering(true);
@@ -220,6 +233,19 @@ export function ActorPanel({
                   </button>
                 )}
                 {authed && <Badge tone="success">✓</Badge>}
+                {a.type !== ActorType.Bus && authed && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSignOut(a);
+                    }}
+                    className="rounded-md px-1.5 py-1 text-xs text-warning hover:bg-warning-container"
+                    title={t("actor.signOut")}
+                  >
+                    🔓
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={(e) => {

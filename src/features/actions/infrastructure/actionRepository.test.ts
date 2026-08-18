@@ -99,15 +99,13 @@ describe("bffActionRepository", () => {
     });
   });
 
-  it("forwards the safe action reference without credentials or token", async () => {
+  it("forwards the safe action reference without raw snapshots", async () => {
     mockedRequest.mockResolvedValue(envelope({}));
     await bffActionRepository.execute({
       env,
       actor: {
         ...actor,
         raw: { secret: true },
-        token: "should-not-leak",
-        credentials: { email: "a@b.c", password: "secret" },
       },
       action: mustGet("driver.startTrip"),
       args: { id: "1" },

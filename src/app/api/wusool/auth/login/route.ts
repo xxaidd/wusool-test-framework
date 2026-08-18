@@ -32,6 +32,7 @@ export async function POST(request: Request): Promise<Response> {
     await getDevCredentialVault().setContext(body.actorId, env.id, {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
+      expiresAt: tokens.expiresAt,
     });
     return ok({ authenticated: true });
   } catch (err) {

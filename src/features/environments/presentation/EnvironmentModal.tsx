@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { logout } from "@/features/actors/infrastructure/authService";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 import { envPresets } from "@/infrastructure/configuration/environments";
@@ -51,7 +52,16 @@ export function EnvironmentModal({
     chosen.id !== env.id ||
     admin !== adminToken;
 
-  const apply = () => {
+  const envChanged = chosen.baseUrl !== env.baseUrl || chosen.id !== env.id;
+
+  const apply = async () => {
+    if (envChanged) {
+      try {
+        await logout(env);
+      } catch {
+        // Server-side vault clear is best-effort; client state is reset below.
+      }
+    }
     setEnv(chosen);
     setAdminToken(admin);
     clearWorkspace();
