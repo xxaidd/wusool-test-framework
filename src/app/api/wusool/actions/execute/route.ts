@@ -38,7 +38,7 @@ const executeSchema = z.object({
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = executeSchema.parse(await request.json());
-    const env = resolveEnvironment(body.env);
+    const env = await resolveEnvironment(body.env);
     const action = getAction(body.actionId);
     if (!action) {
       throw new ValidationError(`Unknown action "${body.actionId}".`);

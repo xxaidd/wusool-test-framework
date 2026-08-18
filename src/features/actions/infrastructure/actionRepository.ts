@@ -1,5 +1,10 @@
-import { bffRequest, envRef, safeActor } from "@/infrastructure/bff/client";
-import { classifyHttpStatus } from "@/shared/errors";
+import {
+  BffError,
+  bffRequest,
+  envRef,
+  safeActor,
+} from "@/infrastructure/bff/client";
+import { classifyError, classifyHttpStatus } from "@/shared/errors";
 import type { CorrelationInfo } from "@/shared/lib/correlation";
 import type {
   SanitizedRequest,
@@ -31,16 +36,35 @@ export interface ExecuteEnvelope {
  */
 export const bffActionRepository: ActionRepository = {
   async execute(input: ActionRequestInput): Promise<ActionResult> {
-    const res = await bffRequest<ExecuteEnvelope>(
-      "/api/wusool/actions/execute",
-      {
-        env: envRef(input.env),
-        actor: safeActor(input.actor),
-        actionId: input.action.id,
-        args: input.args,
-      },
-      { signal: input.signal },
-    );
+    let res: ExecuteEnvelope;
+    try {
+      res = await bffRequest<ExecuteEnvelope>(
+        "/api/wusool/actions/execute",
+        {
+          env: envRef(input.env),
+          actor: safeActor(input.actor),
+          actionId: input.action.id,
+          args: input.args,
+        },
+        { signal: input.signal },
+      );
+    } catch (err) {
+      // Cancellation must propagate so callers can distinguish it.
+      if (err instanceof Error && err.name === "AbortError") throw err;
+      // Backend/network failures become a normal failed outcome so they are
+      // session-recorded and surfaced instead of crashing the caller (FR-37).
+      const classification =
+        err instanceof BffError
+          ? classifyHttpStatus(err.status)
+          : classifyError(err);
+      return {
+        status: "failure",
+        classification,
+        statusCode: err instanceof BffError ? err.status : 0,
+        message: err instanceof Error ? err.message : "Network error",
+        correlation: {},
+      };
+    }
 
     const correlation = res.correlation ?? {};
     if (res.needsAuth) {

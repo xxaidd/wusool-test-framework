@@ -98,6 +98,9 @@ export const useActorStore = create<ActorState>()(
           placed: [],
           selectedActorId: null,
           discovered: [],
+          search: "",
+          typeFilter: "all",
+          drawingRoute: false,
         }),
 
       actorById: (id) => get().workspace.find((a) => a.id === id),

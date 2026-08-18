@@ -48,7 +48,7 @@ function toOptions(
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = searchSchema.parse(await request.json());
-    const env = resolveEnvironment(body.env);
+    const env = await resolveEnvironment(body.env);
 
     let token: string | undefined;
     if (body.actorId) {

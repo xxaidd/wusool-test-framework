@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { logout } from "@/features/actors/infrastructure/authService";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 import { envPresets } from "@/infrastructure/configuration/environments";
@@ -11,8 +10,22 @@ import { Input } from "@/shared/components/Input";
 import { Modal, ModalFooter } from "@/shared/components/Modal";
 import { useI18n } from "@/shared/i18n";
 import { useActorStore } from "@/shared/store/actor.store";
-import { useAuthStore } from "@/shared/store/auth.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
+import { switchEnvironment } from "@/shared/store/environmentSwitch";
+import { useSessionStore } from "@/shared/store/session.store";
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      !parsed.username &&
+      !parsed.password
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function EnvironmentModal({
   open,
@@ -23,19 +36,20 @@ export function EnvironmentModal({
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
-  const setEnv = useEnvironmentStore((s) => s.setEnv);
   const adminToken = useEnvironmentStore((s) => s.adminToken);
   const setAdminToken = useEnvironmentStore((s) => s.setAdminToken);
   const health = useEnvironmentStore((s) => s.health);
   const checkHealth = useEnvironmentStore((s) => s.checkHealth);
-  const clearWorkspace = useActorStore((s) => s.clearWorkspace);
-  const workspaceCount = useActorStore((s) => s.workspace.length);
-  const clearAuth = useAuthStore((s) => s.clearAll);
+  const workspace = useActorStore((s) => s.workspace);
+  const placed = useActorStore((s) => s.placed);
+  const sessionEvents = useSessionStore((s) => s.events);
+  const sessionRecording = useSessionStore((s) => s.recording);
 
   const [selected, setSelected] = useState<BackendEnvironment>(env);
   const [customUrl, setCustomUrl] = useState(env.custom ? env.baseUrl : "");
   const [admin, setAdmin] = useState(adminToken);
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const chosen: BackendEnvironment =
     selected.id === BackendEnvId.Custom
@@ -47,25 +61,36 @@ export function EnvironmentModal({
         }
       : selected;
 
-  const isChanged =
-    chosen.baseUrl !== env.baseUrl ||
-    chosen.id !== env.id ||
-    admin !== adminToken;
-
   const envChanged = chosen.baseUrl !== env.baseUrl || chosen.id !== env.id;
 
+  const hasScopedState =
+    workspace.length > 0 ||
+    placed.length > 0 ||
+    sessionEvents.length > 0 ||
+    sessionRecording;
+
+  const customInvalid =
+    selected.id === BackendEnvId.Custom &&
+    (customUrl.trim() === "" || !isValidHttpUrl(customUrl));
+
   const apply = async () => {
-    if (envChanged) {
-      try {
-        await logout(env);
-      } catch {
-        // Server-side vault clear is best-effort; client state is reset below.
-      }
+    if (customInvalid) {
+      setError(t("environment.urlInvalid"));
+      return;
     }
-    setEnv(chosen);
-    setAdminToken(admin);
-    clearWorkspace();
-    clearAuth();
+    setError(null);
+    if (!envChanged) {
+      setAdminToken(admin);
+      onClose();
+      return;
+    }
+    const result = await switchEnvironment(chosen, admin, {
+      eventLabel: t("environment.switch"),
+    });
+    if (!result.ok) {
+      setError(result.error ?? t("environment.urlInvalid"));
+      return;
+    }
     onClose();
   };
 
@@ -81,10 +106,10 @@ export function EnvironmentModal({
             onCancel={onClose}
             confirmLabel={t("environment.connect")}
             onConfirm={() => {
-              if (isChanged && workspaceCount > 0 && !confirming) {
+              if (envChanged && hasScopedState && !confirming) {
                 setConfirming(true);
               } else {
-                apply();
+                void apply();
               }
             }}
           />
@@ -135,7 +160,7 @@ export function EnvironmentModal({
               setSelected({
                 id: BackendEnvId.Custom,
                 label: "Custom",
-                baseUrl: customUrl || "http://localhost:5002",
+                baseUrl: customUrl,
                 custom: true,
               })
             }
@@ -155,7 +180,18 @@ export function EnvironmentModal({
                 placeholder={t("environment.urlPlaceholder")}
                 dir="ltr"
               />
+              {customInvalid && (
+                <p className="mt-1 text-xs text-danger">
+                  {t("environment.urlInvalid")}
+                </p>
+              )}
             </div>
+          )}
+
+          {error && (
+            <p className="rounded-lg border border-danger-container bg-danger-container px-3 py-2 text-xs text-danger">
+              {error}
+            </p>
           )}
 
           <div className="border-t border-border pt-3">
@@ -190,7 +226,7 @@ export function EnvironmentModal({
             confirmLabel={t("environment.confirm")}
             onConfirm={() => {
               setConfirming(false);
-              apply();
+              void apply();
             }}
           />
         }

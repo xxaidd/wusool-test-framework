@@ -71,7 +71,7 @@ function userToActor(raw: {
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = searchSchema.parse(await request.json());
-    const env = resolveEnvironment(body.env);
+    const env = await resolveEnvironment(body.env);
     const out: ActorRef[] = [];
 
     if (body.types.includes(ActorType.Bus)) {

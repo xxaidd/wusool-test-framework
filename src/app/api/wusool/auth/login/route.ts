@@ -20,7 +20,7 @@ const loginSchema = z.object({
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = loginSchema.parse(await request.json());
-    const env = resolveEnvironment(body.env);
+    const env = await resolveEnvironment(body.env);
     const tokens = await serverLogin(
       env,
       {

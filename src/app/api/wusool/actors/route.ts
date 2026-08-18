@@ -28,7 +28,7 @@ const createSchema = z.object({
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = createSchema.parse(await request.json());
-    const env = resolveEnvironment(body.env);
+    const env = await resolveEnvironment(body.env);
     const vault = getDevCredentialVault();
     const input = body.input as CreateActorInput;
 

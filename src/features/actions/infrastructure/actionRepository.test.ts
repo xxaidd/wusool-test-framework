@@ -3,7 +3,7 @@ import type { ActorRef } from "@/features/actors/domain/actor.types";
 import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
-import { bffRequest } from "@/infrastructure/bff/client";
+import { BffError, bffRequest } from "@/infrastructure/bff/client";
 import { getAction } from "../application/actionCatalog";
 import type { ExecuteEnvelope } from "./actionRepository";
 import { bffActionRepository } from "./actionRepository";
@@ -97,6 +97,59 @@ describe("bffActionRepository", () => {
       statusCode: 404,
       message: "not found",
     });
+  });
+
+  it("turns a backend-unavailable BffError into a recorded failure outcome", async () => {
+    mockedRequest.mockRejectedValue(
+      new BffError(502, "Backend unreachable", "BACKEND_UNAVAILABLE"),
+    );
+    const result = await bffActionRepository.execute({
+      env,
+      actor: { ...actor, raw: undefined },
+      action: mustGet("driver.startTrip"),
+      args: {},
+    });
+    expect(result).toMatchObject({
+      status: "failure",
+      classification: {
+        kind: "infrastructure",
+        subtype: "backend-unavailable",
+      },
+      statusCode: 502,
+      message: "Backend unreachable",
+    });
+  });
+
+  it("classifies a plain network failure without a BffError", async () => {
+    mockedRequest.mockRejectedValue(new Error("Network Error"));
+    const result = await bffActionRepository.execute({
+      env,
+      actor: { ...actor, raw: undefined },
+      action: mustGet("driver.startTrip"),
+      args: {},
+    });
+    expect(result.status).toBe("failure");
+    if (result.status === "failure") {
+      expect(result.classification).toMatchObject({
+        kind: "infrastructure",
+        subtype: "backend-unavailable",
+      });
+      expect(result.message).toBe("Network Error");
+    }
+  });
+
+  it("rethrows cancellation so callers can distinguish it", async () => {
+    const abort = new DOMException("The request was aborted.", "AbortError");
+    mockedRequest.mockRejectedValue(abort);
+    await expect(
+      bffActionRepository.execute({
+        env,
+        actor: { ...actor, raw: undefined },
+        action: mustGet("driver.startTrip"),
+        args: {},
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toBe(abort);
   });
 
   it("forwards the safe action reference without raw snapshots", async () => {

@@ -185,15 +185,23 @@ export function ActorPanel({
           const authed = isAuthenticated(a.id) || a.authenticated;
           const selected = a.id === selectedActorId;
           return (
-            <button
+            // biome-ignore lint/a11y/useSemanticElements: a real <button> is invalid here — its descendants include interactive <button> controls (authenticate / sign-out / remove), which would break HTML parsing and cause hydration errors.
+            <div
               key={a.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData("text/actor-id", a.id);
                 e.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => selectActor(selected ? null : a.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  selectActor(selected ? null : a.id);
+                }
+              }}
               className={`group mx-2 my-1 flex cursor-grab items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
                 selected
                   ? "border-primary bg-primary-container"
@@ -258,7 +266,7 @@ export function ActorPanel({
                   ✕
                 </button>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

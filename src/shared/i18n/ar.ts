@@ -32,6 +32,9 @@ export const ar: Messages = {
     confirm: "تأكيد",
     testConnection: "اختبار الاتصال",
     urlPlaceholder: "https://api.example.com",
+    urlRequired: "أدخل رابط الخلفية.",
+    urlInvalid:
+      "رابط خلفية غير صالح. استخدم عنوان http/https عام؛ الشبكات الخاصة والمحلية غير مسموح بها.",
   },
   actor: {
     title: "الجهات الفاعلة",
@@ -101,6 +104,8 @@ export const ar: Messages = {
     invalid: "غير صالح للحالة الحالية",
     authRequired: "المصادقة مطلوبة لتنفيذ هذا الإجراء.",
     authenticateFirst: "قم بمصادقة هذه الجهة الفاعلة أولًا.",
+    backendUnavailable:
+      "الخلفية غير متاحة. تم إيقاف الإجراءات؛ يمكنك إعادة محاولة الاتصال.",
     loading: "جارٍ التنفيذ…",
     general: "عام",
     searchLoading: "جارٍ تحميل الخيارات…",

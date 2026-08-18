@@ -29,6 +29,9 @@ export const en = {
     confirm: "Confirm",
     testConnection: "Test connection",
     urlPlaceholder: "https://api.example.com",
+    urlRequired: "Enter a backend URL.",
+    urlInvalid:
+      "Invalid backend URL. Use a public http/https address; private and loopback networks are not allowed.",
   },
   actor: {
     title: "Actors",
@@ -98,6 +101,8 @@ export const en = {
     invalid: "Invalid for current state",
     authRequired: "Authentication required to run this action.",
     authenticateFirst: "Authenticate this actor first.",
+    backendUnavailable:
+      "The backend is unavailable. Actions are paused; you can retry the connection.",
     loading: "Executing…",
     general: "General",
     searchLoading: "Loading options…",

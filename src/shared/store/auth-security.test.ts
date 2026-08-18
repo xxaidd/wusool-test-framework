@@ -3,6 +3,7 @@ import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
 import { safeActor } from "@/infrastructure/bff/client";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { useEnvironmentStore } from "@/shared/store/environment.store";
 
 const SECRET_KEY_RE =
   /("(?:password|passwd|token|accessToken|refreshToken|credentials)"\s*:)/i;
@@ -13,6 +14,10 @@ function stateSnapshot(value: unknown): string {
 
 function localStorageValue(name: string): string {
   return globalThis.localStorage.getItem(name) ?? "";
+}
+
+function sessionStorageValue(name: string): string {
+  return globalThis.sessionStorage.getItem(name) ?? "";
 }
 
 describe("auth security surface", () => {
@@ -121,5 +126,14 @@ describe("auth security surface", () => {
       label: "Driver 7",
       authenticated: true,
     });
+  });
+
+  it("the persisted environment payload never contains the admin token", () => {
+    useEnvironmentStore.setState({ adminToken: "admin-jwt-secret" });
+
+    const payload = sessionStorageValue("wusool-environment");
+
+    expect(payload).not.toMatch(/"adminToken"\s*:/);
+    expect(payload).not.toContain("admin-jwt-secret");
   });
 });

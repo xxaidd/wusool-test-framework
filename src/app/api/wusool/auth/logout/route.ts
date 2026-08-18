@@ -18,7 +18,7 @@ const logoutSchema = z.object({
 export async function POST(request: Request): Promise<Response> {
   try {
     const body = logoutSchema.parse(await request.json());
-    const env = resolveEnvironment(body.env);
+    const env = await resolveEnvironment(body.env);
     const vault = getDevCredentialVault();
     if (body.actorId) {
       await vault.clear(body.actorId, env.id);

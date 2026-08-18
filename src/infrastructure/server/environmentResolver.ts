@@ -2,12 +2,19 @@ import { z } from "zod";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 import { envPresets } from "@/infrastructure/configuration/environments";
+import { getSsrfPolicy } from "@/infrastructure/configuration/ssrfPolicy";
 import { EnvironmentError, ValidationError } from "@/shared/errors";
+import {
+  type AssertSafeCustomUrlOptions,
+  assertSafeCustomUrl,
+} from "./ssrfGuard";
 
 export interface ResolveEnvironmentInput {
   envId: string;
   baseUrl?: string;
 }
+
+export type ResolveEnvironmentOptions = AssertSafeCustomUrlOptions;
 
 const customUrlSchema = z
   .string()
@@ -28,17 +35,22 @@ const customUrlSchema = z
 /**
  * Resolve a browser-provided environment reference into a concrete
  * `BackendEnvironment`. Presets are resolved by id from the server-side
- * configuration; custom URLs are scheme-validated. SSRF allowlist policy
- * hardening is Task 1.3.
+ * configuration; custom URLs are scheme-validated and passed through the SSRF
+ * guard so user-supplied URLs cannot target private/loopback networks.
  */
-export function resolveEnvironment(
+export async function resolveEnvironment(
   input: ResolveEnvironmentInput,
-): BackendEnvironment {
+  opts: ResolveEnvironmentOptions = {},
+): Promise<BackendEnvironment> {
   if (input.baseUrl) {
     const parsed = customUrlSchema.safeParse(input.baseUrl);
     if (!parsed.success) {
       throw new ValidationError("Invalid backend URL.");
     }
+    await assertSafeCustomUrl(input.baseUrl, {
+      policy: opts.policy ?? getSsrfPolicy(),
+      resolve: opts.resolve,
+    });
     return {
       id: BackendEnvId.Custom,
       label: "Custom",

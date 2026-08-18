@@ -63,7 +63,15 @@ export const useEnvironmentStore = create<EnvironmentState>()(
     {
       name: "wusool-environment",
       storage: createJSONStorage(() => sessionStorage),
-      partialize: (s) => ({ env: s.env, adminToken: s.adminToken }),
+      // Only the environment is persisted. The admin token is a sensitive,
+      // in-memory-only value: it must never survive a reload in browser
+      // storage (Task 1.3 security decision).
+      partialize: (s) => ({ env: s.env }),
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<EnvironmentState>),
+        adminToken: "",
+      }),
     },
   ),
 );

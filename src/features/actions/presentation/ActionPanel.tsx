@@ -40,6 +40,7 @@ import type {
   SanitizedRequest,
   SanitizedResponse,
 } from "@/shared/redaction/redact";
+import { redactRequest } from "@/shared/redaction/redact";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
@@ -94,6 +95,7 @@ export function ActionPanel({
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
+  const health = useEnvironmentStore((s) => s.health);
   const selected = useActorStore((s) =>
     s.workspace.find((a) => a.id === s.selectedActorId),
   );
@@ -166,15 +168,36 @@ export function ActionPanel({
       selected.lat != null && selected.lng != null
         ? { lat: selected.lat, lng: selected.lng }
         : undefined;
-    const outcome = await runAction({
-      env,
-      actor: selected,
-      action,
-      args,
-      position: pos,
-      repo: bffActionRepository,
-      signal: abortRef.current.signal,
-    });
+    let outcome: ActionOutcome;
+    try {
+      outcome = await runAction({
+        env,
+        actor: selected,
+        action,
+        args,
+        position: pos,
+        repo: bffActionRepository,
+        signal: abortRef.current.signal,
+      });
+    } catch (err) {
+      // Cancellation is expected (user clicked cancel); do not record it.
+      if (err instanceof Error && err.name === "AbortError") {
+        setExecuting(false);
+        return;
+      }
+      // Any unexpected infrastructure failure becomes a normal failed outcome
+      // so the session still records it (FR-37) and the UI resets.
+      outcome = {
+        ok: false,
+        needsAuth: false,
+        request: redactRequest({
+          method: action.method,
+          path: buildPath(action, args, selected),
+        }),
+        durationMs: 0,
+        error: err instanceof Error ? err.message : "Unknown error",
+      };
+    }
     setResult(outcome);
     setExecuting(false);
 
@@ -407,7 +430,7 @@ export function ActionPanel({
             })}
 
             <div className="flex gap-2">
-              <Button full onClick={execute} disabled={executing}>
+              <Button full onClick={execute} disabled={executing || !health.ok}>
                 {executing ? <Spinner /> : `▶ ${t("action.execute")}`}
               </Button>
               {executing && (
@@ -416,6 +439,11 @@ export function ActionPanel({
                 </Button>
               )}
             </div>
+            {!health.ok && !executing && (
+              <p className="text-xs text-danger">
+                {t("app.connectionError")} · {t("action.backendUnavailable")}
+              </p>
+            )}
 
             {/* Result */}
             {result && (
