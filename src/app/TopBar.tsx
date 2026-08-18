@@ -1,5 +1,6 @@
 "use client";
 
+import { Bus, ChevronDown, Download, Pause, Play, Radio } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
@@ -33,10 +34,10 @@ export function TopBar({
   const toggleTheme = useUIStore((s) => s.toggleTheme);
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
-      <div className="flex items-center gap-2">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-lg text-on-primary glow-orange">
-          🚌
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface/90 px-4 backdrop-blur-md">
+      <div className="flex items-center gap-2.5">
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-tertiary text-on-primary shadow-md shadow-primary/25">
+          <Bus size={20} strokeWidth={2} />
         </div>
         <div className="leading-tight">
           <div className="text-sm font-bold text-ink">{t("app.name")}</div>
@@ -52,7 +53,7 @@ export function TopBar({
       <button
         type="button"
         onClick={onOpenEnvironment}
-        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-ink transition-colors hover:border-primary"
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-ink transition-colors hover:border-primary hover:bg-primary-container/40"
         title={t("nav.environment")}
       >
         <span
@@ -65,7 +66,7 @@ export function TopBar({
           }`}
         />
         <span className="font-medium">{env.label}</span>
-        <span className="text-ink-faint">▾</span>
+        <ChevronDown size={15} className="text-ink-faint" />
       </button>
 
       {/* Session controls */}
@@ -74,18 +75,20 @@ export function TopBar({
           <>
             <Badge tone={session.paused ? "warning" : "danger"}>
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
-              {t("session.recording")}
+              {session.paused ? t("session.paused") : t("session.recording")}
             </Badge>
             <Button
               variant="ghost"
               size="sm"
               onClick={session.paused ? session.resume : session.pause}
+              title={session.paused ? t("session.resume") : t("session.pause")}
             >
-              {session.paused ? "▶" : "⏸"}
+              {session.paused ? <Play size={16} /> : <Pause size={16} />}
             </Button>
           </>
         ) : (
           <Button variant="secondary" size="sm" onClick={session.start}>
+            <Radio size={16} />
             {t("session.start")}
           </Button>
         )}
@@ -96,7 +99,8 @@ export function TopBar({
           disabled={session.count === 0}
           title={t("session.export")}
         >
-          ⬇ {t("session.export")}
+          <Download size={16} />
+          {t("session.export")}
         </Button>
       </div>
 

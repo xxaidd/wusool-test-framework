@@ -1,5 +1,18 @@
 "use client";
 
+import {
+  ArrowLeft,
+  ChevronRight,
+  Clock,
+  Compass,
+  type LucideIcon,
+  MapPin,
+  Play,
+  Settings,
+  Target,
+  Ticket,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   actionsForActor,
@@ -47,20 +60,20 @@ import { useEnvironmentStore } from "@/shared/store/environment.store";
 import { useSessionStore } from "@/shared/store/session.store";
 import { useUIStore } from "@/shared/store/ui.store";
 
-function categoryIcon(c: ActionCategory) {
+function categoryIcon(c: ActionCategory): LucideIcon {
   switch (c) {
     case "trip":
-      return "🧭";
+      return Compass;
     case "location":
-      return "📍";
+      return MapPin;
     case "booking":
-      return "🎟️";
+      return Ticket;
     case "incident":
-      return "⚠️";
+      return TriangleAlert;
     case "shift":
-      return "🕐";
+      return Clock;
     default:
-      return "⚙️";
+      return Settings;
   }
 }
 
@@ -232,7 +245,7 @@ export function ActionPanel({
   if (!selected) {
     return (
       <div className="p-4">
-        <EmptyState icon="🎯" title={t("action.selectStep")} />
+        <EmptyState icon={Target} title={t("action.selectStep")} />
       </div>
     );
   }
@@ -251,7 +264,7 @@ export function ActionPanel({
             </div>
           </div>
           {authed ? (
-            <Badge tone="success">✓ {t("actor.authenticated")}</Badge>
+            <Badge tone="success">{t("actor.authenticated")}</Badge>
           ) : (
             <Badge tone="warning">{t("actor.notAuthenticated")}</Badge>
           )}
@@ -295,23 +308,27 @@ export function ActionPanel({
         >
           {t("action.categoryAll")}
         </button>
-        {categories.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => {
-              setCategory(c);
-              setActionId(null);
-            }}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              category === c
-                ? "bg-primary-container text-on-primary-container"
-                : "text-ink-soft hover:bg-surface-variant"
-            }`}
-          >
-            {categoryIcon(c)} {t(`categories.${c}`)}
-          </button>
-        ))}
+        {categories.map((c) => {
+          const CategoryIcon = categoryIcon(c);
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => {
+                setCategory(c);
+                setActionId(null);
+              }}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                category === c
+                  ? "bg-primary-container text-on-primary-container"
+                  : "text-ink-soft hover:bg-surface-variant hover:text-primary"
+              }`}
+            >
+              <CategoryIcon size={14} />
+              {t(`categories.${c}`)}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -332,10 +349,13 @@ export function ActionPanel({
                   setArgs({});
                   setResult(null);
                 }}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm text-ink transition-colors hover:bg-surface-variant"
+                className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm text-ink transition-colors hover:bg-surface-variant hover:pl-4"
               >
                 {t(a.labelKey)}
-                <span className="text-ink-faint">→</span>
+                <ChevronRight
+                  size={16}
+                  className="text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                />
               </button>
             ))}
           </div>
@@ -347,9 +367,10 @@ export function ActionPanel({
             <button
               type="button"
               onClick={() => setActionId(null)}
-              className="text-xs text-info hover:underline"
+              className="inline-flex items-center gap-1 text-xs text-info hover:underline"
             >
-              ← {t("action.categoryAll")}
+              <ArrowLeft size={14} />
+              {t("action.categoryAll")}
             </button>
             <h3 className="text-sm font-bold text-ink">{t(action.labelKey)}</h3>
 
@@ -431,7 +452,14 @@ export function ActionPanel({
 
             <div className="flex gap-2">
               <Button full onClick={execute} disabled={executing || !health.ok}>
-                {executing ? <Spinner /> : `▶ ${t("action.execute")}`}
+                {executing ? (
+                  <Spinner />
+                ) : (
+                  <>
+                    <Play size={16} />
+                    {t("action.execute")}
+                  </>
+                )}
               </Button>
               {executing && (
                 <Button variant="danger" onClick={cancel}>

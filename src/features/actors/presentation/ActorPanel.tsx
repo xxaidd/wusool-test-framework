@@ -1,5 +1,17 @@
 "use client";
 
+import {
+  Bus,
+  Check,
+  Lock,
+  LockOpen,
+  type LucideIcon,
+  Plus,
+  Puzzle,
+  UserCog,
+  UserRound,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import type {
   ActorRef,
@@ -15,14 +27,24 @@ import { Input } from "@/shared/components/Input";
 import { Select } from "@/shared/components/Select";
 import { Spinner } from "@/shared/components/Spinner";
 import { useI18n } from "@/shared/i18n";
+import { actorColors } from "@/shared/lib/tokens";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
 
-function actorIcon(t: AT) {
-  if (t === ActorType.Passenger) return "🧍";
-  if (t === ActorType.Driver) return "🧑‍✈️";
-  return "🚌";
+function actorIcon(t: AT): LucideIcon {
+  if (t === ActorType.Passenger) return UserRound;
+  if (t === ActorType.Driver) return UserCog;
+  return Bus;
+}
+
+function ActorAvatar({ type }: { type: AT }) {
+  const Icon = actorIcon(type);
+  return (
+    <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-border bg-surface-variant/60">
+      <Icon size={16} style={{ color: actorColors[type] }} strokeWidth={2} />
+    </div>
+  );
 }
 
 export function ActorPanel({
@@ -102,8 +124,8 @@ export function ActorPanel({
           <Button variant="subtle" size="sm" onClick={onDiscover}>
             {t("actor.discoverBtn")}
           </Button>
-          <Button size="sm" onClick={onOpenCreate}>
-            +
+          <Button size="sm" onClick={onOpenCreate} title={t("actor.create")}>
+            <Plus size={16} />
           </Button>
         </div>
       </div>
@@ -147,7 +169,9 @@ export function ActorPanel({
               className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-surface-variant"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span className="text-lg">{actorIcon(a.type)}</span>
+                <span className="text-lg">
+                  <ActorAvatar type={a.type} />
+                </span>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium text-ink">
                     {a.label}
@@ -176,7 +200,7 @@ export function ActorPanel({
         </div>
         {filteredWorkspace.length === 0 && (
           <EmptyState
-            icon="🧩"
+            icon={Puzzle}
             title={t("actor.workspaceEmpty")}
             hint={t("actor.discoverHint")}
           />
@@ -209,7 +233,7 @@ export function ActorPanel({
               }`}
               title={t("map.placeActor")}
             >
-              <span className="text-lg">{actorIcon(a.type)}</span>
+              <ActorAvatar type={a.type} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-sm font-semibold text-ink">
@@ -234,13 +258,17 @@ export function ActorPanel({
                         updateActor(a.id, { authenticated: true }),
                       );
                     }}
-                    className="rounded-md px-1.5 py-1 text-xs text-info hover:bg-info-container"
+                    className="rounded-md px-1.5 py-1 text-info transition-colors hover:bg-info-container"
                     title={t("actor.authenticate")}
                   >
-                    🔐
+                    <Lock size={14} />
                   </button>
                 )}
-                {authed && <Badge tone="success">✓</Badge>}
+                {authed && (
+                  <Badge tone="success">
+                    <Check size={11} strokeWidth={3} />
+                  </Badge>
+                )}
                 {a.type !== ActorType.Bus && authed && (
                   <button
                     type="button"
@@ -248,10 +276,10 @@ export function ActorPanel({
                       e.stopPropagation();
                       onSignOut(a);
                     }}
-                    className="rounded-md px-1.5 py-1 text-xs text-warning hover:bg-warning-container"
+                    className="rounded-md px-1.5 py-1 text-warning transition-colors hover:bg-warning-container"
                     title={t("actor.signOut")}
                   >
-                    🔓
+                    <LockOpen size={14} />
                   </button>
                 )}
                 <button
@@ -260,10 +288,10 @@ export function ActorPanel({
                     e.stopPropagation();
                     removeFromWorkspace(a.id);
                   }}
-                  className="rounded-md px-1.5 py-1 text-xs text-danger hover:bg-danger-container"
+                  className="rounded-md px-1.5 py-1 text-danger transition-colors hover:bg-danger-container"
                   title={t("actor.remove")}
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               </div>
             </div>

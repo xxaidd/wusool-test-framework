@@ -1,5 +1,6 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function EmptyState({
@@ -8,16 +9,17 @@ export function EmptyState({
   hint,
   action,
 }: {
-  icon?: ReactNode;
+  icon?: LucideIcon;
   title: string;
   hint?: string;
   action?: ReactNode;
 }) {
+  const Icon = icon;
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-      {icon && (
-        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-container text-2xl text-primary">
-          {icon}
+      {Icon && (
+        <div className="grid size-14 place-items-center rounded-2xl border border-primary/20 bg-gradient-to-br from-primary-container to-secondary-container text-primary shadow-sm">
+          <Icon size={26} strokeWidth={1.75} />
         </div>
       )}
       <p className="text-sm font-semibold text-ink">{title}</p>

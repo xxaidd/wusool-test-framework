@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "./Spinner";
 
@@ -86,7 +87,9 @@ export function SearchSelect({
         <span className={value ? "" : "text-ink-faint"}>
           {selectedLabel && value ? selectedLabel : placeholder}
         </span>
-        <span className="text-ink-soft">▾</span>
+        <span className="text-ink-soft">
+          <ChevronDown size={15} />
+        </span>
       </button>
 
       {open && (

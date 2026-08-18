@@ -1117,4 +1117,14 @@ Timeline
 
 Traceability is a core architectural requirement, not an optional debugging feature.
 
+## 42. UI / UX 
+
+-- follow design_tokens.md
+-- do not create a dub component instead reuseable one and replace the old ones
+-- do not create a component in a page file (do it only if needed or its not a shared component) instead create a reuseable shared component
+-- use framer motion to handle animations
+-- use lucide react for icons 
+-- do not change a component without approval with a reason request
+-- no handwrited text only dict keys (create key(en/ar) if missing)  
+
 <!-- END:nextjs-agent-rules -->
