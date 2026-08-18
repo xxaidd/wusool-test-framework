@@ -177,7 +177,7 @@ Add/update under the existing Vitest setup (`vitest.config.mts`, `src/**/*.test.
 2. **Registry-completeness test** — every `verified: true` `ActionDef` resolves to a registered `EndpointContract`; every executable action is verified; no `verified: false` action is executable.
 3. **Mapper tests** — DTO → domain label mapping for stops/trips/bookings/users/buses (flat-name cases included).
 4. **Error mapping test** — `ApiError` extracts `traceId`/`path` from an `ErrorResponse`-shaped body.
-5. **`npm run test:contract`** — consumer-driven contract tests, gated so they do not run by default:
+5. **`bun run test:contract`** — consumer-driven contract tests, gated so they do not run by default:
    - Script: `"test:contract": "vitest run --config vitest.contract.config.mts"` (new config including `src/infrastructure/contracts/**/*.contract.test.ts`).
    - Reads `WUSOOL_CONTRACT_BASE_URL` (default the pinned test env). **Abort if unset or if the URL matches a production pattern** (e.g. contains `prod`/`production`, or an allowlist match — define a conservative allowlist).
    - Auth: `WUSOOL_CONTRACT_ADMIN_EMAIL` / `WUSOOL_CONTRACT_ADMIN_PASSWORD` (env-only). Flow: `POST /auth/login` → admin token → assert `GET /admin/users`, `GET /stops`, `GET /routes`, `GET /bus-trips`, `GET /buses` responses parse against schemas. Do NOT log the token.
@@ -189,12 +189,12 @@ Add/update under the existing Vitest setup (`vitest.config.mts`, `src/**/*.test.
 ## 6. Verification commands
 
 ```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
+bun run lint
+bun run typecheck
+bun run test
+bun run build
 # live contract tests (only when creds are set):
-WUSOOL_CONTRACT_ADMIN_EMAIL=... WUSOOL_CONTRACT_ADMIN_PASSWORD=... npm run test:contract
+WUSOOL_CONTRACT_ADMIN_EMAIL=... WUSOOL_CONTRACT_ADMIN_PASSWORD=... bun run test:contract
 ```
 
 ---

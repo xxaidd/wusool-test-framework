@@ -6,14 +6,13 @@ Read `AGENTS.md` before modifying the codebase — it defines the architecture, 
 
 ## Prerequisites
 
-- Node.js **24 LTS** (see `.nvmrc`). Other versions are not supported.
-- npm (the lockfile is `package-lock.json`; the supported package manager is npm).
+- [Bun](https://bun.sh) (the lockfile is `bun.lock`; the supported package manager is Bun).
 
 ## Getting started
 
 ```bash
-npm ci        # install exactly what the lockfile declares
-npm run dev   # start the development server
+bun install   # install exactly what the lockfile declares
+bun run dev   # start the development server
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the app.
@@ -23,21 +22,21 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 Every pull request must pass these checks (they also run in CI via `.github/workflows/ci.yml`):
 
 ```bash
-npm run lint        # Biome
-npm run typecheck   # tsc --noEmit
-npm test            # Vitest unit tests
-npm run build       # Next.js production build
+bun run lint        # Biome
+bun run typecheck   # tsc --noEmit
+bun run test          # Vitest unit tests (via `bun run test`)
+bun run build         # Next.js production build
 ```
 
 Additional commands:
 
 ```bash
-npm run test:coverage   # unit tests with coverage report
-npm run lint:fix        # auto-fix lint issues
-npm run format          # format code with Biome
+bun run test:coverage   # unit tests with coverage report
+bun run lint:fix        # auto-fix lint issues
+bun run format          # format code with Biome
 ```
 
-If `npm ci` is not used, `npm install` may produce a different dependency tree — always keep `package-lock.json` in sync and commit it.
+Always keep `bun.lock` in sync and commit it.
 
 ## Documentation
 
