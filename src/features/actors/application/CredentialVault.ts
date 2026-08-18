@@ -22,6 +22,12 @@ export interface CredentialVault {
     envId: string,
     credentials: Credentials,
   ): Promise<void>;
+  /** Directly persist a resolved auth context (e.g. after JIT login). */
+  setContext(
+    actorId: string,
+    envId: string,
+    context: AuthContext,
+  ): Promise<void>;
   resolve(actorId: string, envId: string): Promise<AuthContext | null>;
   clear(actorId: string, envId: string): Promise<void>;
   clearForEnvironment(envId: string): Promise<void>;

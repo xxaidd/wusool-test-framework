@@ -3,8 +3,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
+import { bffRequest, envRef } from "@/infrastructure/bff/client";
 import { DEFAULT_ENV } from "@/infrastructure/configuration/environments";
-import { probe } from "@/infrastructure/http/WusoolApiClient";
 
 export interface HealthState {
   ok: boolean;
@@ -37,14 +37,27 @@ export const useEnvironmentStore = create<EnvironmentState>()(
 
       checkHealth: async () => {
         set({ health: { ...get().health, checking: true } });
-        const result = await probe(get().env.baseUrl);
-        const health: HealthState = {
-          ok: result.ok,
-          status: result.status,
-          checking: false,
-        };
-        set({ health });
-        return health;
+        try {
+          const result = await bffRequest<{ ok: boolean; status: number }>(
+            "/api/wusool/health",
+            { env: envRef(get().env) },
+          );
+          const health: HealthState = {
+            ok: result.ok,
+            status: result.status,
+            checking: false,
+          };
+          set({ health });
+          return health;
+        } catch {
+          const health: HealthState = {
+            ok: false,
+            status: 0,
+            checking: false,
+          };
+          set({ health });
+          return health;
+        }
       },
     }),
     {

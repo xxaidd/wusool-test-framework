@@ -46,7 +46,7 @@ export function ActorPanel({
   const setSearch = useActorStore((s) => s.setSearch);
   const typeFilter = useActorStore((s) => s.typeFilter);
   const setTypeFilter = useActorStore((s) => s.setTypeFilter);
-  const getToken = useAuthStore((s) => s.getToken);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | undefined>();
@@ -169,7 +169,7 @@ export function ActorPanel({
           />
         )}
         {filteredWorkspace.map((a) => {
-          const authed = !!getToken(a.id) || a.authenticated;
+          const authed = isAuthenticated(a.id) || a.authenticated;
           const selected = a.id === selectedActorId;
           return (
             <button

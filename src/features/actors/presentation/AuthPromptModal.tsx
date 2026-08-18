@@ -39,11 +39,7 @@ export function AuthPromptModal({
     }
     setLoading(true);
     try {
-      const _tokens = await login(
-        env,
-        parsed.data,
-        actor.type === ActorType.Driver,
-      );
+      await login(env, parsed.data, actor.type === ActorType.Driver, actor.id);
       onAuthenticated({
         ...actor,
         credentials: { email, password },

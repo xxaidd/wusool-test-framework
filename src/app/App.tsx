@@ -29,7 +29,7 @@ const MapCanvas = dynamic(
 
 export function App() {
   const { t } = useI18n();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const updateActor = useActorStore((s) => s.updateActor);
   const activePanel = useUIStore((s) => s.activePanel);
   const setActivePanel = useUIStore((s) => s.setActivePanel);
@@ -50,10 +50,8 @@ export function App() {
   };
 
   const onAuthSuccess = (actor: ActorRef) => {
-    if (actor.token) {
-      setToken(actor.id, actor.token, actor.credentials?.email);
-      updateActor(actor.id, { authenticated: true, token: actor.token });
-    }
+    setAuthenticated(actor.id, actor.credentials?.email);
+    updateActor(actor.id, { authenticated: true });
     const cb = pendingCb.current;
     pendingCb.current = null;
     if (cb) cb();

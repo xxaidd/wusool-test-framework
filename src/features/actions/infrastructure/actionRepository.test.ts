@@ -1,18 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ActorRef } from "@/features/actors/domain/actor.types";
+import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
-import {
-  ApiError,
-  apiRequestDetailed,
-} from "@/infrastructure/http/WusoolApiClient";
-import { httpActionRepository } from "./actionRepository";
+import { bffRequest } from "@/infrastructure/bff/client";
+import { getAction } from "../application/actionCatalog";
+import type { ExecuteEnvelope } from "./actionRepository";
+import { bffActionRepository } from "./actionRepository";
 
-vi.mock("@/infrastructure/http/WusoolApiClient", async (importActual) => {
+vi.mock("@/infrastructure/bff/client", async (importActual) => {
   const actual =
-    await importActual<
-      typeof import("@/infrastructure/http/WusoolApiClient")
-    >();
-  return { ...actual, apiRequestDetailed: vi.fn() };
+    await importActual<typeof import("@/infrastructure/bff/client")>();
+  return { ...actual, bffRequest: vi.fn() };
 });
 
 const env: BackendEnvironment = {
@@ -21,19 +20,47 @@ const env: BackendEnvironment = {
   baseUrl: "http://localhost:5002",
 };
 
-const mockedRequest = vi.mocked(apiRequestDetailed);
+const actor: ActorRef = {
+  id: "7",
+  type: ActorType.Driver,
+  label: "Driver 7",
+  authenticated: true,
+  source: ActorSource.Existing,
+  raw: { id: 7 },
+};
 
-describe("httpActionRepository", () => {
+const mockedRequest = vi.mocked(bffRequest);
+
+function mustGet(id: string) {
+  const action = getAction(id);
+  if (!action) throw new Error(`missing action: ${id}`);
+  return action;
+}
+
+function envelope(result: Partial<ExecuteEnvelope>): ExecuteEnvelope {
+  return {
+    ok: true,
+    needsAuth: false,
+    statusCode: 200,
+    durationMs: 10,
+    ...result,
+  };
+}
+
+describe("bffActionRepository", () => {
   beforeEach(() => {
     mockedRequest.mockReset();
   });
 
   it("returns a success result on success", async () => {
-    mockedRequest.mockResolvedValue({ status: 201, data: { id: 1 } });
-    const result = await httpActionRepository.execute({
+    mockedRequest.mockResolvedValue(
+      envelope({ ok: true, statusCode: 201, data: { id: 1 } }),
+    );
+    const result = await bffActionRepository.execute({
       env,
-      path: "/api/v1/thing",
-      method: "GET",
+      actor: { ...actor, raw: undefined },
+      action: mustGet("driver.startTrip"),
+      args: { id: "1" },
     });
     expect(result).toEqual({
       status: "success",
@@ -43,22 +70,26 @@ describe("httpActionRepository", () => {
     });
   });
 
-  it("maps 401/403 ApiError failures to needs-auth", async () => {
-    mockedRequest.mockRejectedValue(new ApiError(401, "unauthorized"));
-    const result = await httpActionRepository.execute({
+  it("maps a needs-auth envelope to needs-auth", async () => {
+    mockedRequest.mockResolvedValue(envelope({ ok: false, needsAuth: true }));
+    const result = await bffActionRepository.execute({
       env,
-      path: "/api/v1/thing",
-      method: "GET",
+      actor: { ...actor, raw: undefined },
+      action: mustGet("driver.startTrip"),
+      args: {},
     });
     expect(result).toEqual({ status: "needs-auth", correlation: {} });
   });
 
-  it("classifies other ApiError failures", async () => {
-    mockedRequest.mockRejectedValue(new ApiError(404, "not found"));
-    const result = await httpActionRepository.execute({
+  it("maps a failure envelope with classification", async () => {
+    mockedRequest.mockResolvedValue(
+      envelope({ ok: false, statusCode: 404, error: "not found" }),
+    );
+    const result = await bffActionRepository.execute({
       env,
-      path: "/api/v1/thing",
-      method: "GET",
+      actor: { ...actor, raw: undefined },
+      action: mustGet("driver.startTrip"),
+      args: {},
     });
     expect(result).toMatchObject({
       status: "failure",
@@ -68,60 +99,35 @@ describe("httpActionRepository", () => {
     });
   });
 
-  it("classifies server errors as backend-unavailable", async () => {
-    mockedRequest.mockRejectedValue(new ApiError(500, "boom"));
-    const result = await httpActionRepository.execute({
+  it("forwards the safe action reference without credentials or token", async () => {
+    mockedRequest.mockResolvedValue(envelope({}));
+    await bffActionRepository.execute({
       env,
-      path: "/api/v1/thing",
-      method: "GET",
-    });
-    expect(result).toMatchObject({
-      status: "failure",
-      classification: {
-        kind: "infrastructure",
-        subtype: "backend-unavailable",
+      actor: {
+        ...actor,
+        raw: { secret: true },
+        token: "should-not-leak",
+        credentials: { email: "a@b.c", password: "secret" },
       },
-      statusCode: 500,
-    });
-  });
-
-  it("classifies unknown failures to status 0 network failure", async () => {
-    mockedRequest.mockRejectedValue(new Error("boom"));
-    const result = await httpActionRepository.execute({
-      env,
-      path: "/api/v1/thing",
-      method: "GET",
-    });
-    expect(result).toMatchObject({
-      status: "failure",
-      classification: { kind: "infrastructure", subtype: "network" },
-      statusCode: 0,
-      message: "boom",
-    });
-  });
-
-  it("forwards params, token and signal", async () => {
-    const signal = new AbortController().signal;
-    mockedRequest.mockResolvedValue({ status: 200, data: null });
-    await httpActionRepository.execute({
-      env,
-      path: "/api/v1/thing",
-      method: "POST",
-      token: "abc",
-      params: { a: "1" },
-      data: { x: 1 },
-      signal,
+      action: mustGet("driver.startTrip"),
+      args: { id: "1" },
+      signal: new AbortController().signal,
     });
     expect(mockedRequest).toHaveBeenCalledWith(
-      env,
-      "/api/v1/thing",
-      expect.objectContaining({
-        method: "POST",
-        token: "abc",
-        params: { a: "1" },
-        data: { x: 1 },
-        signal,
-      }),
+      "/api/wusool/actions/execute",
+      {
+        env: { envId: "local", baseUrl: undefined },
+        actor: {
+          id: "7",
+          type: "driver",
+          label: "Driver 7",
+          authenticated: true,
+          source: "existing",
+        },
+        actionId: "driver.startTrip",
+        args: { id: "1" },
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 });
