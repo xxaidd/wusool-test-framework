@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import type { ReactNode } from "react";
 import "./globals.css";
 import { ThemeApplier } from "@/shared/components/ThemeApplier";
 import { I18nProvider } from "@/shared/i18n";
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   description: "Simulation and testing environment for the Wusool backend",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
