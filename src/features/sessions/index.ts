@@ -2,6 +2,7 @@ export type {
   BackendLogEntry,
   BackendLogQuery,
   BackendLogRepository,
+  LogFetchResult,
 } from "./application/BackendLogRepository";
 export type {
   BuildExecutionRecordInput,
@@ -25,6 +26,8 @@ export type {
 export type { SessionDownloader } from "./application/sessionDownloader";
 export type { SessionEventInput } from "./application/sessionEventFactory";
 export { createSessionEvent } from "./application/sessionEventFactory";
+export type { StaticPath, StaticPathPoint } from "./application/sessionPaths";
+export { buildStaticPaths } from "./application/sessionPaths";
 export type { SessionSnapshot } from "./application/sessionPersistence";
 export {
   loadSession,
@@ -36,6 +39,8 @@ export {
 } from "./application/sessionSerializer";
 export type { StoredSessionData } from "./application/storedSession.schema";
 export { storedSessionSchema } from "./application/storedSession.schema";
+export type { TimelineFilter } from "./application/timelineFilters";
+export { filterSessionEvents } from "./application/timelineFilters";
 export * from "./domain/evidence.types";
 export * from "./domain/session.types";
 export type { ActiveSessionRef } from "./infrastructure/indexedDbSessionStorage";

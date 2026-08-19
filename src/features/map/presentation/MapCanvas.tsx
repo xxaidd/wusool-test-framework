@@ -1,8 +1,8 @@
 "use client";
 
 import L from "leaflet";
-import { Check, Pen, Play, Square, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, History, Pen, Play, Square, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   Marker,
@@ -13,6 +13,7 @@ import {
 import type { RouteFollower } from "@/features/map/application/movement";
 import { createRouteFollower } from "@/features/map/application/movement";
 import type { LatLng } from "@/features/map/domain/map.types";
+import { buildStaticPaths } from "@/features/sessions";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Button } from "@/shared/components/Button";
 import { useSessionRecorder } from "@/shared/hooks/useSessionRecorder";
@@ -20,6 +21,7 @@ import { useI18n } from "@/shared/i18n";
 import { actorColors, tokens } from "@/shared/lib/tokens";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
+import { useSessionStore } from "@/shared/store/session.store";
 
 const ICONS: Record<string, string> = {
   passenger:
@@ -58,6 +60,7 @@ export function MapCanvas() {
   const selectedActorId = useActorStore((s) => s.selectedActorId);
   const recorder = useSessionRecorder();
   const envId = useEnvironmentStore((s) => s.env.id);
+  const sessionEvents = useSessionStore((s) => s.events);
 
   const mapRef = useRef<L.Map | null>(null);
   const [route, setRoute] = useState<Array<[number, number]>>([]);
@@ -65,9 +68,17 @@ export function MapCanvas() {
   const [following, setFollowing] = useState(false);
   const [speed, setSpeed] = useState(400);
   const [followActorId, setFollowActorId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const followerRef = useRef<RouteFollower | null>(null);
   const workspaceRef = useRef(workspace);
   workspaceRef.current = workspace;
+
+  // Recorded movement is replayed statically (FR-48): positions from session
+  // events are plotted as dashed lines per actor; no animated playback.
+  const staticPaths = useMemo(
+    () => buildStaticPaths(sessionEvents),
+    [sessionEvents],
+  );
 
   // Environment switches reset map-local work: routes, drawing, and automated
   // movement must never carry across environments (FR-36 / Task 1.3). Setting
@@ -78,6 +89,7 @@ export function MapCanvas() {
     setDrawing(false);
     setFollowing(false);
     setFollowActorId(null);
+    setShowHistory(false);
   }, [envId]);
 
   const selected = workspace.find((a) => a.id === selectedActorId);
@@ -208,6 +220,21 @@ export function MapCanvas() {
             pathOptions={{ color: tokens.tertiary, weight: 3 }}
           />
         )}
+        {showHistory &&
+          staticPaths.map((path) => (
+            <Polyline
+              key={path.actorId}
+              positions={path.points.map(
+                (p) => [p.lat, p.lng] as [number, number],
+              )}
+              pathOptions={{
+                color: tokens.secondary,
+                weight: 2,
+                opacity: 0.7,
+                dashArray: "6 6",
+              }}
+            />
+          ))}
       </MapContainer>
 
       {/* Toolbar */}
@@ -261,6 +288,23 @@ export function MapCanvas() {
                 {t("map.followRoute")}
               </>
             )}
+          </Button>
+        )}
+        {staticPaths.length > 0 && (
+          <Button
+            variant={showHistory ? "secondary" : "subtle"}
+            size="sm"
+            onClick={() => setShowHistory((v) => !v)}
+            title={
+              showHistory
+                ? t("map.hideHistoricalPaths")
+                : t("map.showHistoricalPaths")
+            }
+          >
+            <History size={15} />
+            {showHistory
+              ? t("map.hideHistoricalPaths")
+              : t("map.showHistoricalPaths")}
           </Button>
         )}
       </div>

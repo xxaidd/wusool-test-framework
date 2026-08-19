@@ -11,9 +11,24 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "node",
-    include: ["src/**/*.test.ts"],
-    exclude: ["**/*.contract.test.ts"],
-    setupFiles: ["src/test/setup-storage.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+          exclude: ["**/*.contract.test.ts"],
+          setupFiles: ["src/test/setup-storage.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          environment: "jsdom",
+          include: ["src/**/*.test.tsx"],
+          setupFiles: ["src/test/setup-component.ts"],
+        },
+      },
+    ],
   },
 });
