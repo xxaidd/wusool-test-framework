@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getDevCredentialVault } from "@/infrastructure/server/credentialVaultDev";
 import { resolveEnvironment } from "@/infrastructure/server/environmentResolver";
 import { serverLogin } from "@/infrastructure/server/wusoolServerClient";
+import { AuthenticationError } from "@/shared/errors";
 import { fail, ok } from "../../helpers";
 import { envInputSchema } from "../../schemas";
 
@@ -29,6 +30,16 @@ export async function POST(request: Request): Promise<Response> {
       },
       body.isDriver,
     );
+    // Never store a token-less context: a 2FA-required or malformed response
+    // must fail loudly instead of appearing to succeed and then re-prompting.
+    if (tokens.requiresTwoFactor) {
+      throw new AuthenticationError(
+        "Two-factor authentication is required but is not supported by the framework.",
+      );
+    }
+    if (!tokens.accessToken) {
+      throw new AuthenticationError("The backend returned no access token.");
+    }
     await getDevCredentialVault().setContext(body.actorId, env.id, {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

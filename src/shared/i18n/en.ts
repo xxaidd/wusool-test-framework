@@ -220,6 +220,8 @@ export const en = {
     driverNote:
       "This actor is a Driver, so the driver login flow will be used.",
     unauthorized: "Authentication failed.",
+    twoFactorRequired:
+      "This account requires two-factor authentication, which is not supported by the framework yet.",
   },
   session: {
     title: "Session",
@@ -292,6 +294,18 @@ export const en = {
     classificationSubtypeBackendUnavailable: "Backend unavailable",
     classificationSubtypeCancelled: "Cancelled",
     classificationSubtypeStorage: "Storage",
+    open: "Open session file",
+    importError: "Could not open the session file",
+    importInvalid: "The file is not a valid session record.",
+    importing: "Opening session…",
+    readOnly: "Read-only",
+    viewerTitle: "Session evidence",
+    eventCountLabel: "events",
+    id: "Session ID",
+    environment: "Environment",
+    startedAt: "Started",
+    exportedAt: "Exported",
+    logsOffline: "Backend log excerpts (from file)",
   },
   workflow: {
     title: "Workflows",

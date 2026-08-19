@@ -14,6 +14,25 @@ export {
 } from "./application/buildExecutionRecord";
 export { exportSession } from "./application/exportSession";
 export type {
+  ExportedSessionData,
+} from "./application/exportedSession.schema";
+export { exportedSessionSchema } from "./application/exportedSession.schema";
+export type {
+  ImportedSession,
+} from "./application/sessionImporter";
+export {
+  checkImportSize,
+  importSessionFile,
+  MAX_IMPORT_BYTES,
+} from "./application/sessionImporter";
+export type { SessionLogData } from "./application/sessionLog.schema";
+export { sessionLogSchema } from "./application/sessionLog.schema";
+export {
+  migrateSessionFile,
+  MIN_SESSION_FORMAT_VERSION,
+  SESSION_MIGRATIONS,
+} from "./application/sessionMigrations";
+export type {
   RecordEventInput,
   SessionRecorder,
   SessionStart,

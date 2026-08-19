@@ -4,6 +4,8 @@ export interface AuthTokens {
   tokenType?: string;
   /** Best-effort expiry (ms since epoch) parsed from the access token JWT. */
   expiresAt?: number;
+  /** Set when the backend login requires two-factor confirmation (unsupported gap). */
+  requiresTwoFactor?: boolean;
 }
 
 export class AuthError extends Error {

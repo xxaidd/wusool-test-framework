@@ -3,7 +3,10 @@ import {
   getDevCredentialVault,
   resetDevCredentialVault,
 } from "@/infrastructure/server/credentialVaultDev";
-import { serverRequest } from "@/infrastructure/server/wusoolServerClient";
+import {
+  serverRefresh,
+  serverRequest,
+} from "@/infrastructure/server/wusoolServerClient";
 import { POST } from "./route";
 
 vi.mock("@/infrastructure/server/wusoolServerClient", async (importActual) => {
@@ -11,10 +14,11 @@ vi.mock("@/infrastructure/server/wusoolServerClient", async (importActual) => {
     await importActual<
       typeof import("@/infrastructure/server/wusoolServerClient")
     >();
-  return { ...actual, serverRequest: vi.fn() };
+  return { ...actual, serverRefresh: vi.fn(), serverRequest: vi.fn() };
 });
 
 const mockedServerRequest = vi.mocked(serverRequest);
+const mockedServerRefresh = vi.mocked(serverRefresh);
 
 function req(body: unknown): Request {
   return new Request("http://localhost/api/wusool/actions/execute", {
@@ -39,6 +43,7 @@ describe("POST /api/wusool/actions/execute", () => {
   beforeEach(() => {
     resetDevCredentialVault();
     mockedServerRequest.mockReset();
+    mockedServerRefresh.mockReset();
   });
 
   it("returns needs-auth when the action requires auth and the vault has no token", async () => {
@@ -63,6 +68,65 @@ describe("POST /api/wusool/actions/execute", () => {
       accessToken: "stale-token",
       expiresAt: Date.now() - 60_000,
     });
+
+    const res = await POST(
+      req({ ...base, actionId: "passenger.myBookings", args: {} }),
+    );
+    const json = (await res.json()) as {
+      ok: boolean;
+      data: { needsAuth: boolean; ok: boolean };
+    };
+
+    expect(json.ok).toBe(true);
+    expect(json.data.needsAuth).toBe(true);
+    expect(json.data.ok).toBe(false);
+    expect(mockedServerRequest).not.toHaveBeenCalled();
+    expect(mockedServerRefresh).not.toHaveBeenCalled();
+  });
+
+  it("silently refreshes an expired context with a refresh token and executes", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "stale-token",
+      refreshToken: "actor-refresh",
+      expiresAt: Date.now() - 60_000,
+    });
+    mockedServerRefresh.mockResolvedValue({
+      accessToken: "fresh-token",
+      expiresAt: Date.now() + 60_000,
+    });
+    mockedServerRequest.mockResolvedValue({
+      status: 200,
+      data: { items: [] },
+      headers: {},
+    });
+
+    const res = await POST(
+      req({ ...base, actionId: "passenger.myBookings", args: {} }),
+    );
+    const json = (await res.json()) as {
+      data: { ok: boolean; needsAuth: boolean };
+    };
+
+    expect(json.data.ok).toBe(true);
+    expect(json.data.needsAuth).toBe(false);
+    expect(mockedServerRefresh).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://localhost:5002" }),
+      "actor-refresh",
+    );
+    expect(mockedServerRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://localhost:5002" }),
+      "/api/v1/user-trips/me",
+      expect.objectContaining({ token: "fresh-token" }),
+    );
+  });
+
+  it("returns needs-auth when the refresh attempt fails", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "stale-token",
+      refreshToken: "actor-refresh",
+      expiresAt: Date.now() - 60_000,
+    });
+    mockedServerRefresh.mockRejectedValue(new Error("refresh rejected"));
 
     const res = await POST(
       req({ ...base, actionId: "passenger.myBookings", args: {} }),

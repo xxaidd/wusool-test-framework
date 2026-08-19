@@ -218,6 +218,8 @@ export const ar: Messages = {
     cancel: "إلغاء",
     driverNote: "هذه الجهة سائق، لذا سيُستخدم تدفق تسجيل دخول السائق.",
     unauthorized: "فشلت المصادقة.",
+    twoFactorRequired:
+      "يتطلب هذا الحساب مصادقة ثنائية العوامل، غير مدعومة في الإطار بعد.",
   },
   session: {
     title: "الجلسة",
@@ -288,6 +290,18 @@ export const ar: Messages = {
     classificationSubtypeBackendUnavailable: "الخادم الخلفي غير متاح",
     classificationSubtypeCancelled: "ملغي",
     classificationSubtypeStorage: "تخزين",
+    open: "فتح ملف جلسة",
+    importError: "تعذر فتح ملف الجلسة",
+    importInvalid: "الملف ليس سجل جلسة صالحًا.",
+    importing: "جارٍ فتح الجلسة…",
+    readOnly: "قراءة فقط",
+    viewerTitle: "أدلة الجلسة",
+    eventCountLabel: "حدث",
+    id: "معرّف الجلسة",
+    environment: "البيئة",
+    startedAt: "البداية",
+    exportedAt: "التصدير",
+    logsOffline: "مقتطفات سجلات الخادم الخلفي (من الملف)",
   },
   workflow: {
     title: "سير العمل",

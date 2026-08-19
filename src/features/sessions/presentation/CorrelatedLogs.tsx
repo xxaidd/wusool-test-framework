@@ -11,6 +11,7 @@ import { Spinner } from "@/shared/components/Spinner";
 import { useI18n } from "@/shared/i18n";
 import { redact, redactStringifiedBody } from "@/shared/redaction/redact";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
+import { useSessionStore } from "@/shared/store/session.store";
 
 type LogsMode =
   | "idle"
@@ -39,11 +40,27 @@ function safeMetadata(
  * Lazy correlated backend-log panel for a single event. Logs are fetched only
  * when the user asks for them (no timeline-wide prefetch), the window is
  * derived from the event timestamp, and the request is aborted on unmount.
+ * Successful fetches are cached in the session store so exports can embed
+ * them. In read-only mode (`readOnly`/`staticEntries`), no repository is
+ * constructed and no request can be issued — the embedded excerpts from an
+ * imported session are rendered directly.
  */
-export function CorrelatedLogs({ event }: { event: SessionEvent }) {
+export function CorrelatedLogs({
+  event,
+  readOnly = false,
+  staticEntries,
+}: {
+  event: SessionEvent;
+  readOnly?: boolean;
+  staticEntries?: BackendLogEntry[];
+}) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
-  const repo = useMemo(() => createBackendLogRepository(env), [env]);
+  const setLogs = useSessionStore((s) => s.setLogs);
+  const repo = useMemo(
+    () => (readOnly ? null : createBackendLogRepository(env)),
+    [env, readOnly],
+  );
 
   const [mode, setMode] = useState<LogsMode>("idle");
   const [entries, setEntries] = useState<BackendLogEntry[]>([]);
@@ -55,7 +72,7 @@ export function CorrelatedLogs({ event }: { event: SessionEvent }) {
   }, []);
 
   const load = async () => {
-    if (!event.correlationId) return;
+    if (!event.correlationId || repo == null) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setMode("loading");
@@ -76,6 +93,7 @@ export function CorrelatedLogs({ event }: { event: SessionEvent }) {
         case "success":
           setEntries(result.entries);
           setMode("success");
+          setLogs(event.id, result.entries);
           break;
         case "unavailable":
           setMode("unavailable");
@@ -97,6 +115,14 @@ export function CorrelatedLogs({ event }: { event: SessionEvent }) {
     }
   };
 
+  const isReadOnly = readOnly || staticEntries != null;
+  const renderedEntries = staticEntries ?? entries;
+  const renderedMode: LogsMode = isReadOnly
+    ? renderedEntries.length > 0
+      ? "success"
+      : "idle"
+    : mode;
+
   return (
     <div
       className="rounded-xl border border-border bg-surface-variant/60 p-3"
@@ -105,9 +131,9 @@ export function CorrelatedLogs({ event }: { event: SessionEvent }) {
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 text-xs font-semibold text-ink">
           <ScrollText size={14} />
-          {t("session.backendLogs")}
+          {isReadOnly ? t("session.logsOffline") : t("session.backendLogs")}
         </span>
-        {mode === "idle" && (
+        {mode === "idle" && !isReadOnly && (
           <Button
             variant="subtle"
             size="sm"
@@ -119,13 +145,15 @@ export function CorrelatedLogs({ event }: { event: SessionEvent }) {
         )}
       </div>
 
-      {mode === "idle" && !event.correlationId && (
-        <p className="text-xs text-ink-soft">
-          {t("session.logsNoCorrelation")}
-        </p>
+      {renderedMode === "idle" && !isReadOnly && !event.correlationId && (
+        <p className="text-xs text-ink-soft">{t("session.logsNoCorrelation")}</p>
       )}
 
-      {mode === "loading" && (
+      {renderedMode === "idle" && isReadOnly && (
+        <p className="text-xs text-ink-soft">{t("session.logsEmpty")}</p>
+      )}
+
+      {renderedMode === "loading" && (
         <output
           aria-busy="true"
           className="flex items-center gap-2 text-xs text-ink-soft"
@@ -134,19 +162,19 @@ export function CorrelatedLogs({ event }: { event: SessionEvent }) {
         </output>
       )}
 
-      {mode === "unavailable" && (
+      {renderedMode === "unavailable" && (
         <p className="text-xs font-medium text-warning">
           {t("session.logsUnavailable")}
         </p>
       )}
 
-      {mode === "permission" && (
+      {renderedMode === "permission" && (
         <p className="text-xs font-medium text-danger">
           {t("session.logsPermission")}
         </p>
       )}
 
-      {mode === "error" && (
+      {renderedMode === "error" && (
         <div className="text-xs text-danger">
           <p className="font-medium">{t("session.logsError")}</p>
           {message && (
@@ -155,13 +183,13 @@ export function CorrelatedLogs({ event }: { event: SessionEvent }) {
         </div>
       )}
 
-      {mode === "success" && entries.length === 0 && (
+      {renderedMode === "success" && renderedEntries.length === 0 && (
         <p className="text-xs text-ink-soft">{t("session.logsEmpty")}</p>
       )}
 
-      {mode === "success" && entries.length > 0 && (
+      {renderedMode === "success" && renderedEntries.length > 0 && (
         <ul className="max-h-56 space-y-2 overflow-y-auto">
-          {entries.map((entry, index) => {
+          {renderedEntries.map((entry, index) => {
             const metadata = safeMetadata(entry.metadata);
             return (
               <li

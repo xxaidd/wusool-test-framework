@@ -71,6 +71,34 @@ describe("POST /api/wusool/actors", () => {
     expect(ctx).toMatchObject({ accessToken: "pass-tok" });
   });
 
+  it("rejects passenger registration that returns no access token", async () => {
+    mockedServerRegister.mockResolvedValue({
+      tokens: { accessToken: "" },
+      userId: "u1",
+    });
+
+    const res = await POST(
+      req({
+        env: { envId: "local" },
+        input: {
+          type: ActorType.Passenger,
+          email: "p@x",
+          password: "secret",
+          name: "Passenger",
+        },
+      }),
+    );
+    const body = (await res.json()) as {
+      ok: boolean;
+      error: { code: string };
+    };
+
+    expect(res.status).toBe(401);
+    expect(body.error.code).toBe("AUTHENTICATION");
+    // No context stored and no falsely-authenticated actor returned.
+    expect(await getDevCredentialVault().resolve("u1", "local")).toBeNull();
+  });
+
   it("creates a driver using the vault admin token", async () => {
     await getDevCredentialVault().setAdminContext("local", {
       accessToken: "admin-tok",

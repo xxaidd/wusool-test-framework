@@ -9,6 +9,10 @@ import { serializeSession } from "./sessionSerializer";
 export function exportSession(input: {
   events: Parameters<typeof serializeSession>[0]["events"];
   startedAt?: string;
+  sessionId?: string;
+  name?: string;
+  environment?: { id: string; label?: string };
+  logs?: Parameters<typeof serializeSession>[0]["logs"];
   download: SessionDownloader;
 }): void {
   try {

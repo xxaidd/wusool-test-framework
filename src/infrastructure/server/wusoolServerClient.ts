@@ -239,6 +239,7 @@ export async function serverLogin(
     token?: unknown;
     refreshToken?: unknown;
     tokenType?: unknown;
+    requiresTwoFactor?: unknown;
   };
   const readString = (value: unknown): string | undefined =>
     typeof value === "string" && value ? value : undefined;
@@ -248,6 +249,7 @@ export async function serverLogin(
     refreshToken: readString(body.refreshToken),
     tokenType: readString(body.tokenType),
     expiresAt: extractExpiry(accessToken),
+    requiresTwoFactor: body.requiresTwoFactor === true,
   };
 }
 
@@ -269,6 +271,7 @@ export async function serverRefresh(
     token?: unknown;
     refreshToken?: unknown;
     tokenType?: unknown;
+    requiresTwoFactor?: unknown;
   };
   const readString = (value: unknown): string | undefined =>
     typeof value === "string" && value ? value : undefined;
@@ -278,6 +281,7 @@ export async function serverRefresh(
     refreshToken: readString(body.refreshToken),
     tokenType: readString(body.tokenType),
     expiresAt: extractExpiry(accessToken),
+    requiresTwoFactor: body.requiresTwoFactor === true,
   };
 }
 
@@ -300,6 +304,7 @@ export async function serverRegister(
     token?: unknown;
     refreshToken?: unknown;
     user?: { userId?: unknown } | null;
+    requiresTwoFactor?: unknown;
   };
   const readString = (value: unknown): string | undefined =>
     typeof value === "string" && value ? value : undefined;
@@ -309,6 +314,7 @@ export async function serverRegister(
       accessToken,
       refreshToken: readString(body.refreshToken),
       expiresAt: extractExpiry(accessToken),
+      requiresTwoFactor: body.requiresTwoFactor === true,
     },
     userId: readString(body.user?.userId),
   };

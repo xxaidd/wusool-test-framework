@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { BackendLogEntry } from "@/features/sessions/application/BackendLogRepository";
 import { Badge } from "@/shared/components/Badge";
 import { Modal } from "@/shared/components/Modal";
 import type { FailureClassification } from "@/shared/errors";
@@ -92,9 +93,15 @@ function Headers({ headers }: { headers: Record<string, string> }) {
 export function EventInspector({
   event,
   onClose,
+  readOnly = false,
+  logs,
 }: {
   event: SessionEvent | null;
   onClose: () => void;
+  /** Render without any log-fetching capability (imported evidence). */
+  readOnly?: boolean;
+  /** Cached redacted log excerpts per event id, shown when read-only. */
+  logs?: Record<string, BackendLogEntry[]>;
 }) {
   const { t } = useI18n();
 
@@ -245,7 +252,11 @@ export function EventInspector({
             </div>
           )}
 
-          <CorrelatedLogs event={event} />
+          <CorrelatedLogs
+            event={event}
+            readOnly={readOnly}
+            staticEntries={readOnly ? logs?.[event.id] : undefined}
+          />
         </div>
       )}
     </Modal>

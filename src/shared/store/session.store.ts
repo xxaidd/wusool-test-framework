@@ -7,7 +7,9 @@ import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { clearActiveSessionRef } from "@/features/sessions/infrastructure/indexedDbSessionStorage";
 import { browserSessionDownloader } from "@/features/sessions/infrastructure/sessionDownloader";
+import type { BackendLogEntry } from "@/features/sessions/application/BackendLogRepository";
 import { createId } from "@/shared/lib/ids";
+import { useEnvironmentStore } from "@/shared/store/environment.store";
 import {
   deletePersistedSession,
   flush as flushSession,
@@ -21,6 +23,8 @@ interface SessionState {
   /** Environment id this session's events belong to (environment isolation). */
   envId?: string;
   events: SessionEvent[];
+  /** Redacted backend-log excerpts per event id, cached for export/offline view. */
+  logs: Record<string, BackendLogEntry[]>;
   /** Stable identity of the active session (generated on start). */
   sessionId?: string;
   /** Optional user-provided session name. */
@@ -36,6 +40,7 @@ interface SessionState {
   appendEvent: (ev: SessionEvent) => void;
   setEnvId: (envId: string) => void;
   setStorageError: (error?: string) => void;
+  setLogs: (eventId: string, entries: BackendLogEntry[]) => void;
   /** Restore a previously persisted active session after a page reload. */
   restore: (input: {
     sessionId: string;
@@ -59,6 +64,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   startedAt: undefined,
   envId: undefined,
   events: [],
+  logs: {},
   sessionId: undefined,
   name: undefined,
   storageError: undefined,
@@ -89,6 +95,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }
     set({
       events: [],
+      logs: {},
       startedAt: undefined,
       envId: undefined,
       sessionId: undefined,
@@ -101,6 +108,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setEnvId: (envId) => set({ envId }),
   setStorageError: (error) => set({ storageError: error }),
+  setLogs: (eventId, entries) =>
+    set((s) => ({ logs: { ...s.logs, [eventId]: entries } })),
 
   restore: ({ sessionId, envId, startedAt, name, events }) =>
     set({
@@ -144,6 +153,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // is ever reused across environments (FR-36).
     set({
       events: [switchEvent],
+      logs: {},
       startedAt: undefined,
       recording: false,
       paused: false,
@@ -164,9 +174,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   exportSession: () => {
     void flushSession();
     const s = get();
+    const env = useEnvironmentStore.getState().env;
     exportSessionUsecase({
       events: s.events,
       startedAt: s.startedAt,
+      sessionId: s.sessionId,
+      name: s.name,
+      environment: { id: env.id, label: env.label },
+      logs: Object.entries(s.logs).map(([eventId, entries]) => ({
+        eventId,
+        entries,
+      })),
       download: browserSessionDownloader,
     });
   },

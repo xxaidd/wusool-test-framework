@@ -54,6 +54,8 @@ const sessionEventSchema = z
   })
   .passthrough();
 
+export { sessionEventSchema };
+
 /**
  * Load-boundary validation for persisted sessions. Validates data coming out
  * of local storage (and, in Task 3.4, imported session files) before the

@@ -1,7 +1,13 @@
 "use client";
 
-import { CircleStop, Download, Pause, Play, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { CircleStop, Download, FolderOpen, Pause, Play, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import type { ImportedSession } from "@/features/sessions/application/sessionImporter";
+import {
+  checkImportSize,
+  importSessionFile,
+} from "@/features/sessions/application/sessionImporter";
+import { SessionImportError } from "@/shared/errors";
 import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
@@ -10,6 +16,7 @@ import { useI18n } from "@/shared/i18n";
 import { useSessionStore } from "@/shared/store/session.store";
 import { EventInspector } from "./EventInspector";
 import { SessionTimeline } from "./SessionTimeline";
+import { SessionViewer } from "./SessionViewer";
 
 export function SessionPanel() {
   const { t } = useI18n();
@@ -25,10 +32,29 @@ export function SessionPanel() {
   const exportSession = useSessionStore((s) => s.exportSession);
   const [detail, setDetail] = useState<SessionEvent | null>(null);
   const [name, setName] = useState("");
+  const [viewer, setViewer] = useState<ImportedSession | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onStart = () => {
     start(name.trim() || undefined);
     setName("");
+  };
+
+  const onPickFile = async (file: File | undefined) => {
+    setImportError(null);
+    if (!file) return;
+    try {
+      checkImportSize(file.size);
+      const imported = importSessionFile(await file.text());
+      setViewer(imported);
+    } catch (err) {
+      if (err instanceof SessionImportError) {
+        setImportError(err.message);
+      } else {
+        setImportError(t("session.importInvalid"));
+      }
+    }
   };
 
   return (
@@ -81,6 +107,14 @@ export function SessionPanel() {
             <Trash2 size={16} />
           </Button>
           <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            title={t("session.open")}
+          >
+            <FolderOpen size={16} />
+          </Button>
+          <Button
             variant="secondary"
             size="sm"
             onClick={exportSession}
@@ -91,6 +125,17 @@ export function SessionPanel() {
           </Button>
         </div>
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".wusool-session,application/json"
+        className="hidden"
+        onChange={(e) => {
+          void onPickFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
 
       {!recording && (
         <div className="border-b border-border px-4 py-2">
@@ -103,6 +148,15 @@ export function SessionPanel() {
               if (e.key === "Enter") onStart();
             }}
           />
+        </div>
+      )}
+
+      {importError && (
+        <div
+          role="alert"
+          className="mx-4 mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs font-medium text-danger"
+        >
+          {t("session.importError")}: {importError}
         </div>
       )}
 
@@ -120,6 +174,8 @@ export function SessionPanel() {
       </div>
 
       <EventInspector event={detail} onClose={() => setDetail(null)} />
+
+      <SessionViewer session={viewer} onClose={() => setViewer(null)} />
     </div>
   );
 }
