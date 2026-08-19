@@ -2,6 +2,7 @@ export {
   actions,
   actionsForActor,
   getAction,
+  verifiedActionsForActor,
 } from "./application/actionCatalog";
 export type {
   ActionRepository,

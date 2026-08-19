@@ -1,5 +1,21 @@
 import { z } from "zod";
 import type { EntityKind } from "@/features/actions/domain/action.types";
+import {
+  bookingMapper,
+  busMapper,
+  routeMapper,
+  shiftMapper,
+  stopMapper,
+  tripMapper,
+} from "@/infrastructure/contracts/mappers";
+import { BusDtoSchema } from "@/infrastructure/contracts/schemas/actor";
+import {
+  BookableTripDtoSchema,
+  DriverShiftDtoSchema,
+  RouteResponseSchema,
+  StopDtoSchema,
+  UserTripDtoSchema,
+} from "@/infrastructure/contracts/schemas/entity";
 import { getDevCredentialVault } from "@/infrastructure/server/credentialVaultDev";
 import { resolveEnvironment } from "@/infrastructure/server/environmentResolver";
 import { serverRequest } from "@/infrastructure/server/wusoolServerClient";
@@ -12,20 +28,6 @@ export interface EntityOption {
   raw?: Record<string, unknown>;
 }
 
-interface Nameful {
-  id?: number | string;
-  name?: { en?: string; ar?: string };
-  shortName?: string;
-  plateNumber?: string;
-  routeName?: { en?: string; ar?: string };
-  departureTime?: string;
-  boardingStopName?: { en?: string; ar?: string };
-  alightingStopName?: { en?: string; ar?: string };
-  status?: string;
-  shiftDate?: string;
-  shiftType?: string;
-}
-
 const searchSchema = z.object({
   env: envInputSchema,
   actorId: z.string().optional(),
@@ -33,15 +35,43 @@ const searchSchema = z.object({
   query: z.string().default(""),
 });
 
-function toOptions(
-  items: Nameful[],
-  labelFor: (item: Nameful) => string,
-): EntityOption[] {
-  return items.map((item) => ({
-    value: String(item.id),
-    label: labelFor(item),
-    raw: item as unknown as Record<string, unknown>,
-  }));
+/**
+ * Parse and map backend items through the contract DTO schemas and mappers.
+ * Items that fail validation are skipped — never mapped by guessing.
+ */
+function mapItems(kind: string, items: unknown[]): EntityOption[] {
+  const options: EntityOption[] = [];
+  for (const item of items) {
+    let mapped: EntityOption | undefined;
+    if (kind === "stop") {
+      const parsed = StopDtoSchema.safeParse(item);
+      if (parsed.success) mapped = stopMapper(parsed.data);
+    } else if (kind === "route") {
+      const parsed = RouteResponseSchema.safeParse(item);
+      if (parsed.success) mapped = routeMapper(parsed.data);
+    } else if (kind === "trip") {
+      const parsed = BookableTripDtoSchema.safeParse(item);
+      if (parsed.success) mapped = tripMapper(parsed.data);
+    } else if (kind === "bus") {
+      const parsed = BusDtoSchema.safeParse(item);
+      if (parsed.success) {
+        const mapped = busMapper(parsed.data);
+        options.push({
+          value: mapped.id,
+          label: mapped.label,
+          raw: mapped.raw,
+        });
+      }
+    } else if (kind === "booking") {
+      const parsed = UserTripDtoSchema.safeParse(item);
+      if (parsed.success) mapped = bookingMapper(parsed.data);
+    } else if (kind === "shift") {
+      const parsed = DriverShiftDtoSchema.safeParse(item);
+      if (parsed.success) mapped = shiftMapper(parsed.data);
+    }
+    if (mapped) options.push(mapped);
+  }
+  return options;
 }
 
 /** Search backend entities for action form fields, resolving actor auth server-side. */
@@ -71,42 +101,9 @@ export async function POST(request: Request): Promise<Response> {
     else if (kind === "shift") path = "/api/v1/shifts/me";
 
     const res = await serverRequest(env, path, { token, params });
-    const items = (res.data as { items?: Nameful[] } | null)?.items ?? [];
+    const items = (res.data as { items?: unknown[] } | null)?.items ?? [];
 
-    let options: EntityOption[] = [];
-    if (kind === "route") {
-      options = toOptions(
-        items,
-        (r) => r.shortName || r.name?.en || r.name?.ar || `Route ${r.id}`,
-      );
-    } else if (kind === "stop") {
-      options = toOptions(
-        items,
-        (s) => s.name?.en || s.name?.ar || `Stop ${s.id}`,
-      );
-    } else if (kind === "trip") {
-      options = toOptions(
-        items,
-        (t) =>
-          `${t.routeName?.en || t.routeName?.ar || "Trip"} · ${t.departureTime ?? t.id}`,
-      );
-    } else if (kind === "bus") {
-      options = toOptions(items, (b) => b.plateNumber || `Bus ${b.id}`);
-    } else if (kind === "booking") {
-      options = toOptions(
-        items,
-        (t) =>
-          `${t.boardingStopName?.en || t.boardingStopName?.ar || "Trip"} → ${t.alightingStopName?.en || t.alightingStopName?.ar || t.id} · ${t.status ?? ""}`,
-      );
-    } else if (kind === "shift") {
-      options = toOptions(
-        items,
-        (s) =>
-          `${s.shiftDate ?? ""} · ${s.shiftType ?? ""} · ${s.status ?? s.id}`,
-      );
-    }
-
-    return ok(options);
+    return ok(mapItems(body.kind, items));
   } catch (err) {
     return fail(err);
   }

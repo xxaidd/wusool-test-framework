@@ -28,8 +28,8 @@ const base = {
   env: { envId: "local" },
   actor: {
     id: "7",
-    type: "driver",
-    label: "Driver 7",
+    type: "passenger",
+    label: "Passenger 7",
     authenticated: true,
     source: "existing",
   },
@@ -43,7 +43,7 @@ describe("POST /api/wusool/actions/execute", () => {
 
   it("returns needs-auth when the action requires auth and the vault has no token", async () => {
     const res = await POST(
-      req({ ...base, actionId: "driver.startTrip", args: { id: "42" } }),
+      req({ ...base, actionId: "passenger.myBookings", args: {} }),
     );
     const json = (await res.json()) as {
       ok: boolean;
@@ -65,7 +65,7 @@ describe("POST /api/wusool/actions/execute", () => {
     });
 
     const res = await POST(
-      req({ ...base, actionId: "driver.startTrip", args: { id: "42" } }),
+      req({ ...base, actionId: "passenger.myBookings", args: {} }),
     );
     const json = (await res.json()) as {
       ok: boolean;
@@ -90,14 +90,14 @@ describe("POST /api/wusool/actions/execute", () => {
     });
 
     const res = await POST(
-      req({ ...base, actionId: "driver.myShifts", args: {} }),
+      req({ ...base, actionId: "passenger.myBookings", args: {} }),
     );
     const json = (await res.json()) as { data: { ok: boolean } };
 
     expect(json.data.ok).toBe(true);
     expect(mockedServerRequest).toHaveBeenCalledWith(
       expect.objectContaining({ baseUrl: "http://localhost:5002" }),
-      "/api/v1/shifts/me",
+      "/api/v1/user-trips/me",
       expect.objectContaining({ token: "tok-fresh" }),
     );
   });
@@ -113,7 +113,7 @@ describe("POST /api/wusool/actions/execute", () => {
     });
 
     const res = await POST(
-      req({ ...base, actionId: "driver.myShifts", args: {} }),
+      req({ ...base, actionId: "passenger.myBookings", args: {} }),
     );
     const json = (await res.json()) as {
       data: {
@@ -127,7 +127,7 @@ describe("POST /api/wusool/actions/execute", () => {
     expect(json.data.ok).toBe(true);
     expect(mockedServerRequest).toHaveBeenCalledWith(
       expect.objectContaining({ baseUrl: "http://localhost:5002" }),
-      "/api/v1/shifts/me",
+      "/api/v1/user-trips/me",
       expect.objectContaining({ method: "GET", token: "tok" }),
     );
     expect(json.data.correlation?.traceId).toBe("trace-1");

@@ -43,6 +43,11 @@ export async function POST(request: Request): Promise<Response> {
     if (!action) {
       throw new ValidationError(`Unknown action "${body.actionId}".`);
     }
+    if (!action.verified) {
+      throw new ValidationError(
+        `Action "${body.actionId}" is not contract-verified and cannot be executed.`,
+      );
+    }
 
     const actor: ActorRef = {
       ...body.actor,
