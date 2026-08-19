@@ -4,6 +4,7 @@ import { buildExecutionRecord } from "@/features/sessions/application/buildExecu
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { REDACTED } from "@/shared/redaction/redact";
 import { useSessionStore } from "@/shared/store/session.store";
+import { cancelPendingSave } from "@/shared/store/sessionPersistence";
 import { sessionRecorder } from "./sessionRecorder";
 
 const request = {
@@ -14,12 +15,16 @@ const request = {
 };
 
 beforeEach(() => {
+  cancelPendingSave();
   useSessionStore.setState({
     recording: false,
     paused: false,
     startedAt: undefined,
     envId: undefined,
     events: [],
+    sessionId: undefined,
+    name: undefined,
+    storageError: undefined,
   });
 });
 

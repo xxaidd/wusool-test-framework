@@ -244,6 +244,11 @@ export const ar: Messages = {
     response: "الاستجابة",
     close: "إغلاق",
     downloaded: "تم تنزيل ملف الجلسة.",
+    end: "إنهاء الجلسة",
+    name: "اسم الجلسة",
+    namePlaceholder: "اسم الجلسة (اختياري)…",
+    storageError:
+      "تعذر حفظ الجلسة محليًا. يتم الاحتفاظ بالأحداث في الذاكرة؛ قم بالتصدير للحفاظ عليها.",
   },
   workflow: {
     title: "سير العمل",

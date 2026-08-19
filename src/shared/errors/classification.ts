@@ -12,7 +12,12 @@ export type FailureClassification =
   | { kind: "validation" }
   | {
       kind: "infrastructure";
-      subtype: "timeout" | "network" | "backend-unavailable" | "cancelled";
+      subtype:
+        | "timeout"
+        | "network"
+        | "backend-unavailable"
+        | "cancelled"
+        | "storage";
     };
 
 /** Classify an HTTP status from a completed backend response. */

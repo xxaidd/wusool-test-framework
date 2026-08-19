@@ -246,6 +246,11 @@ export const en = {
     response: "Response",
     close: "Close",
     downloaded: "Session file downloaded.",
+    end: "End session",
+    name: "Session name",
+    namePlaceholder: "Optional session name…",
+    storageError:
+      "Session could not be saved locally. Events are kept in memory; export to preserve them.",
   },
   workflow: {
     title: "Workflows",

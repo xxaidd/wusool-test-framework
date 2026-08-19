@@ -87,7 +87,7 @@ export function TopBar({
             </Button>
           </>
         ) : (
-          <Button variant="secondary" size="sm" onClick={session.start}>
+          <Button variant="secondary" size="sm" onClick={() => session.start()}>
             <Radio size={16} />
             {t("session.start")}
           </Button>

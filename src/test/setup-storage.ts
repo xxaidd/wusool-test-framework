@@ -1,3 +1,5 @@
+import "fake-indexeddb/auto";
+
 function createMemoryStorage(): Storage {
   const store = new Map<string, string>();
   return {

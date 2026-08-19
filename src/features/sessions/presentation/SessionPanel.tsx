@@ -1,12 +1,20 @@
 "use client";
 
-import { Clapperboard, Download, Pause, Play, Trash2 } from "lucide-react";
+import {
+  CircleStop,
+  Clapperboard,
+  Download,
+  Pause,
+  Play,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
+import { Input } from "@/shared/components/Input";
 import { Modal } from "@/shared/components/Modal";
 import { useI18n } from "@/shared/i18n";
 import { useSessionStore } from "@/shared/store/session.store";
@@ -29,12 +37,20 @@ export function SessionPanel() {
   const recording = useSessionStore((s) => s.recording);
   const paused = useSessionStore((s) => s.paused);
   const events = useSessionStore((s) => s.events);
+  const storageError = useSessionStore((s) => s.storageError);
   const start = useSessionStore((s) => s.start);
   const pause = useSessionStore((s) => s.pause);
   const resume = useSessionStore((s) => s.resume);
+  const end = useSessionStore((s) => s.end);
   const clear = useSessionStore((s) => s.clear);
   const exportSession = useSessionStore((s) => s.exportSession);
   const [detail, setDetail] = useState<SessionEvent | null>(null);
+  const [name, setName] = useState("");
+
+  const onStart = () => {
+    start(name.trim() || undefined);
+    setName("");
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -52,19 +68,29 @@ export function SessionPanel() {
         </div>
         <div className="flex items-center gap-1">
           {!recording ? (
-            <Button size="sm" onClick={start}>
+            <Button size="sm" onClick={onStart}>
               <Play size={16} />
               {t("session.start")}
             </Button>
           ) : (
-            <Button
-              variant="subtle"
-              size="sm"
-              onClick={paused ? resume : pause}
-              title={paused ? t("session.resume") : t("session.pause")}
-            >
-              {paused ? <Play size={16} /> : <Pause size={16} />}
-            </Button>
+            <>
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={paused ? resume : pause}
+                title={paused ? t("session.resume") : t("session.pause")}
+              >
+                {paused ? <Play size={16} /> : <Pause size={16} />}
+              </Button>
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={end}
+                title={t("session.end")}
+              >
+                <CircleStop size={16} />
+              </Button>
+            </>
           )}
           <Button
             variant="ghost"
@@ -86,6 +112,29 @@ export function SessionPanel() {
           </Button>
         </div>
       </div>
+
+      {!recording && (
+        <div className="border-b border-border px-4 py-2">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("session.namePlaceholder")}
+            aria-label={t("session.name")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onStart();
+            }}
+          />
+        </div>
+      )}
+
+      {storageError && (
+        <div
+          role="alert"
+          className="mx-4 mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs font-medium text-danger"
+        >
+          {t(storageError)}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {events.length === 0 && (

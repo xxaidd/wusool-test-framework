@@ -4,6 +4,7 @@ import type { BackendEnvironment } from "@/features/environments/domain/environm
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
 import { createSessionEvent } from "@/features/sessions/application/sessionEventFactory";
 import { SessionSource } from "@/features/sessions/domain/session.types";
+import { getActiveSessionRef } from "@/features/sessions/infrastructure/indexedDbSessionStorage";
 import { BffError, bffRequest } from "@/infrastructure/bff/client";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
@@ -84,6 +85,9 @@ describe("switchEnvironment", () => {
       startedAt: undefined,
       envId: undefined,
       events: [],
+      sessionId: undefined,
+      name: undefined,
+      storageError: undefined,
     });
     mockedBffRequest.mockReset();
   });
@@ -137,6 +141,10 @@ describe("switchEnvironment", () => {
       status: "info",
       summary: "Local → Staging",
     });
+    // The active session identity is cleared so reload never resumes the old
+    // environment's session across environments.
+    expect(session.sessionId).toBeUndefined();
+    expect(getActiveSessionRef()).toBeNull();
   });
 
   it("keeps the environment when the backend is unreachable but valid", async () => {

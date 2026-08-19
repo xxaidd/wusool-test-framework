@@ -25,12 +25,26 @@ export type {
 export type { SessionDownloader } from "./application/sessionDownloader";
 export type { SessionEventInput } from "./application/sessionEventFactory";
 export { createSessionEvent } from "./application/sessionEventFactory";
+export type { SessionSnapshot } from "./application/sessionPersistence";
+export {
+  loadSession,
+  toStoredSession,
+} from "./application/sessionPersistence";
 export {
   SESSION_FORMAT_VERSION,
   serializeSession,
 } from "./application/sessionSerializer";
+export type { StoredSessionData } from "./application/storedSession.schema";
+export { storedSessionSchema } from "./application/storedSession.schema";
 export * from "./domain/evidence.types";
 export * from "./domain/session.types";
+export type { ActiveSessionRef } from "./infrastructure/indexedDbSessionStorage";
+export {
+  clearActiveSessionRef,
+  getActiveSessionRef,
+  indexedDbSessionStorage,
+  setActiveSessionRef,
+} from "./infrastructure/indexedDbSessionStorage";
 export {
   browserSessionDownloader,
   sessionFileName,

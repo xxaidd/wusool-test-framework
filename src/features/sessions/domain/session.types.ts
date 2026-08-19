@@ -55,4 +55,10 @@ export interface SessionState {
   events: SessionEvent[];
   startedAt?: string;
   paused: boolean;
+  /** Stable identity of the active session (generated on start). */
+  sessionId?: string;
+  /** Optional user-provided session name. */
+  name?: string;
+  /** Structured message of the last local-storage failure, surfaced to the UI. */
+  storageError?: string;
 }

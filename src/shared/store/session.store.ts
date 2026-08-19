@@ -5,7 +5,14 @@ import { exportSession as exportSessionUsecase } from "@/features/sessions/appli
 import { createSessionEvent } from "@/features/sessions/application/sessionEventFactory";
 import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
+import { clearActiveSessionRef } from "@/features/sessions/infrastructure/indexedDbSessionStorage";
 import { browserSessionDownloader } from "@/features/sessions/infrastructure/sessionDownloader";
+import { createId } from "@/shared/lib/ids";
+import {
+  deletePersistedSession,
+  flush as flushSession,
+  scheduleSave,
+} from "@/shared/store/sessionPersistence";
 
 interface SessionState {
   recording: boolean;
@@ -14,12 +21,29 @@ interface SessionState {
   /** Environment id this session's events belong to (environment isolation). */
   envId?: string;
   events: SessionEvent[];
-  start: () => void;
+  /** Stable identity of the active session (generated on start). */
+  sessionId?: string;
+  /** Optional user-provided session name. */
+  name?: string;
+  /** Structured message of the last local-storage failure, surfaced to the UI. */
+  storageError?: string;
+  start: (name?: string) => void;
   pause: () => void;
   resume: () => void;
+  /** End recording, persist the final record as evidence, and stop auto-resume. */
+  end: () => void;
   clear: () => void;
   appendEvent: (ev: SessionEvent) => void;
   setEnvId: (envId: string) => void;
+  setStorageError: (error?: string) => void;
+  /** Restore a previously persisted active session after a page reload. */
+  restore: (input: {
+    sessionId: string;
+    envId: string;
+    startedAt?: string;
+    name?: string;
+    events: SessionEvent[];
+  }) => void;
   finalizeForEnvironmentSwitch: (input: {
     oldLabel: string;
     newLabel: string;
@@ -35,19 +59,60 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   startedAt: undefined,
   envId: undefined,
   events: [],
+  sessionId: undefined,
+  name: undefined,
+  storageError: undefined,
 
-  start: () =>
-    set((s) => ({
+  start: (name) =>
+    set({
       recording: true,
       paused: false,
-      startedAt: s.startedAt ?? new Date().toISOString(),
-    })),
+      startedAt: new Date().toISOString(),
+      sessionId: createId("ses"),
+      name,
+      storageError: undefined,
+    }),
 
   pause: () => set({ paused: true }),
   resume: () => set({ paused: false }),
-  clear: () => set({ events: [], startedAt: undefined, envId: undefined }),
+
+  end: () => {
+    set({ recording: false, paused: false });
+    void flushSession({ setPointer: false });
+    clearActiveSessionRef();
+  },
+
+  clear: () => {
+    const { sessionId } = get();
+    if (sessionId != null) {
+      void deletePersistedSession(sessionId);
+    }
+    set({
+      events: [],
+      startedAt: undefined,
+      envId: undefined,
+      sessionId: undefined,
+      name: undefined,
+      recording: false,
+      paused: false,
+      storageError: undefined,
+    });
+  },
 
   setEnvId: (envId) => set({ envId }),
+  setStorageError: (error) => set({ storageError: error }),
+
+  restore: ({ sessionId, envId, startedAt, name, events }) =>
+    set({
+      recording: true,
+      paused: false,
+      startedAt,
+      envId,
+      events,
+      sessionId,
+      name,
+      storageError: undefined,
+    }),
 
   finalizeForEnvironmentSwitch: ({
     oldLabel,
@@ -55,6 +120,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     newEnvId,
     eventLabel,
   }) => {
+    // Persist the prior environment's session as retained evidence before the
+    // in-memory reset, and clear its active pointer so reload does not resume
+    // it across environments (FR-36).
+    const { sessionId } = get();
+    if (sessionId != null) {
+      void flushSession({ retain: true, setPointer: false });
+      clearActiveSessionRef();
+    }
     const switchEvent = createSessionEvent({
       source: SessionSource.System,
       actor: { id: "system", label: "System" },
@@ -75,6 +148,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       recording: false,
       paused: false,
       envId: newEnvId,
+      sessionId: undefined,
+      name: undefined,
+      storageError: undefined,
     });
   },
 
@@ -82,9 +158,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const s = get();
     if (!s.recording || s.paused) return;
     set((st) => ({ events: [...st.events, ev] }));
+    scheduleSave();
   },
 
   exportSession: () => {
+    void flushSession();
     const s = get();
     exportSessionUsecase({
       events: s.events,
