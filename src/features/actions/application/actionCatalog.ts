@@ -13,6 +13,8 @@ export const actions: ActionDef[] = [
   // ---------- Passenger ----------
   {
     id: "passenger.hail",
+    verified: true,
+    contractRef: "passenger.hail",
     labelKey: "actions.passenger.hail",
     category: AC.Booking,
     actorTypes: [ActorType.Passenger],
@@ -37,6 +39,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "passenger.reserve",
+    verified: true,
+    contractRef: "passenger.reserve",
     labelKey: "actions.passenger.reserve",
     category: AC.Booking,
     actorTypes: [ActorType.Passenger],
@@ -67,6 +71,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "passenger.myBookings",
+    verified: true,
+    contractRef: "passenger.myBookings",
     labelKey: "actions.passenger.myBookings",
     category: AC.Booking,
     actorTypes: [ActorType.Passenger],
@@ -78,6 +84,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "passenger.cancelBooking",
+    verified: true,
+    contractRef: "passenger.cancelBooking",
     labelKey: "actions.passenger.cancelBooking",
     category: AC.Booking,
     actorTypes: [ActorType.Passenger],
@@ -102,6 +110,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "passenger.rateTrip",
+    verified: true,
+    contractRef: "passenger.rateTrip",
     labelKey: "actions.passenger.rateTrip",
     category: AC.Booking,
     actorTypes: [ActorType.Passenger],
@@ -127,6 +137,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "passenger.discoverTrips",
+    verified: true,
+    contractRef: "passenger.discoverTrips",
     labelKey: "actions.passenger.discoverTrips",
     category: AC.Trip,
     actorTypes: [ActorType.Passenger],
@@ -153,6 +165,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "passenger.addFavorite",
+    verified: true,
+    contractRef: "passenger.addFavorite",
     labelKey: "actions.passenger.addFavorite",
     category: AC.General,
     actorTypes: [ActorType.Passenger],
@@ -183,6 +197,8 @@ export const actions: ActionDef[] = [
   // ---------- Driver ----------
   {
     id: "driver.startTrip",
+    verified: false,
+    contractRef: "driver.startTrip",
     labelKey: "actions.driver.startTrip",
     category: AC.Trip,
     actorTypes: [ActorType.Driver],
@@ -196,6 +212,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "driver.endTrip",
+    verified: false,
+    contractRef: "driver.endTrip",
     labelKey: "actions.driver.endTrip",
     category: AC.Trip,
     actorTypes: [ActorType.Driver],
@@ -209,6 +227,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "driver.reportIncident",
+    verified: false,
+    contractRef: "driver.reportIncident",
     labelKey: "actions.driver.reportIncident",
     category: AC.Incident,
     actorTypes: [ActorType.Driver],
@@ -255,6 +275,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "driver.myIncidents",
+    verified: false,
+    contractRef: "driver.myIncidents",
     labelKey: "actions.driver.myIncidents",
     category: AC.Incident,
     actorTypes: [ActorType.Driver],
@@ -266,6 +288,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "driver.myShifts",
+    verified: false,
+    contractRef: "driver.myShifts",
     labelKey: "actions.driver.myShifts",
     category: AC.Shift,
     actorTypes: [ActorType.Driver],
@@ -277,6 +301,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "driver.checkIn",
+    verified: false,
+    contractRef: "driver.checkIn",
     labelKey: "actions.driver.checkIn",
     category: AC.Shift,
     actorTypes: [ActorType.Driver],
@@ -290,6 +316,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "driver.myBus",
+    verified: false,
+    contractRef: "driver.myBus",
     labelKey: "actions.driver.myBus",
     category: AC.General,
     actorTypes: [ActorType.Driver],
@@ -304,6 +332,8 @@ export const actions: ActionDef[] = [
   // ---------- Bus ----------
   {
     id: "bus.location",
+    verified: false,
+    contractRef: "bus.location",
     labelKey: "actions.bus.location",
     category: AC.Location,
     actorTypes: [ActorType.Bus],
@@ -316,6 +346,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "bus.detail",
+    verified: false,
+    contractRef: "bus.detail",
     labelKey: "actions.bus.detail",
     category: AC.General,
     actorTypes: [ActorType.Bus],
@@ -328,6 +360,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "general.listBuses",
+    verified: true,
+    contractRef: "general.listBuses",
     labelKey: "actions.bus.list",
     category: AC.General,
     actorTypes: [ActorType.Passenger, ActorType.Driver, ActorType.Bus],
@@ -339,6 +373,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "general.listRoutes",
+    verified: true,
+    contractRef: "general.listRoutes",
     labelKey: "actions.general.listRoutes",
     category: AC.General,
     actorTypes: [ActorType.Passenger, ActorType.Driver, ActorType.Bus],
@@ -350,6 +386,8 @@ export const actions: ActionDef[] = [
   },
   {
     id: "general.listStops",
+    verified: true,
+    contractRef: "general.listStops",
     labelKey: "actions.general.listStops",
     category: AC.General,
     actorTypes: [ActorType.Passenger, ActorType.Driver, ActorType.Bus],
@@ -370,6 +408,17 @@ export function actionsForActor(
       a.actorTypes.includes(type) &&
       (category == null || a.category === category),
   );
+}
+
+/**
+ * Actions for an actor that map to contract-verified Wusool endpoints.
+ * Unverified (Driver/Bus + unconfirmed) actions are never listable/executable.
+ */
+export function verifiedActionsForActor(
+  type: ActorType,
+  category?: ActionCategory,
+): ActionDef[] {
+  return actionsForActor(type, category).filter((a) => a.verified);
 }
 
 export function getAction(id: string): ActionDef | undefined {

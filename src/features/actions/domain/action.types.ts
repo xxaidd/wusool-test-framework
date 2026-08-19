@@ -64,4 +64,12 @@ export interface ActionDef {
   fields: ActionField[];
   /** map body key -> source expr ("internal.*" reads from actor.raw) */
   dynamic?: Record<string, string>;
+  /**
+   * Whether this action maps to a contract-verified Wusool endpoint
+   * (`docs/contracts/wusool-api-v1.md`). Unverified actions are never
+   * listable or executable.
+   */
+  verified: boolean;
+  /** Reference into `src/infrastructure/contracts/endpointContract.ts`. */
+  contractRef: string;
 }

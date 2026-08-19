@@ -4,11 +4,13 @@ import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
 import type { ActionDef } from "../domain/action.types";
 import { ActionCategory } from "../domain/action.types";
 import {
+  actions,
   actionsForActor,
   buildBody,
   buildPath,
   buildQuery,
   getAction,
+  verifiedActionsForActor,
 } from "./actionCatalog";
 
 const actor: ActorRef = {
@@ -38,6 +40,29 @@ describe("actionsForActor", () => {
   it("filters by category", () => {
     const trip = actionsForActor(ActorType.Passenger, ActionCategory.Trip);
     expect(trip.every((a) => a.category === ActionCategory.Trip)).toBe(true);
+  });
+});
+
+describe("verifiedActionsForActor", () => {
+  it("returns only contract-verified actions", () => {
+    const verified = verifiedActionsForActor(ActorType.Passenger);
+    expect(verified.length).toBeGreaterThan(0);
+    expect(verified.every((a) => a.verified)).toBe(true);
+  });
+
+  it("excludes Driver/Bus actions which are flagged unverified", () => {
+    expect(
+      verifiedActionsForActor(ActorType.Driver).every((a) => a.verified),
+    ).toBe(true);
+    expect(
+      verifiedActionsForActor(ActorType.Bus).every((a) => a.verified),
+    ).toBe(true);
+  });
+
+  it("every action carries a contractRef", () => {
+    for (const a of actions) {
+      expect(a.contractRef, a.id).toBeTruthy();
+    }
   });
 });
 

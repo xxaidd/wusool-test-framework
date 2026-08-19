@@ -30,6 +30,10 @@ export class ServerApiError extends Error {
   code?: string;
   body?: unknown;
   headers?: Record<string, string>;
+  /** Backend trace id from `ErrorResponse.traceId` (correlation seed). */
+  traceId?: string;
+  /** Backend request path from `ErrorResponse.path`. */
+  path?: string;
 
   constructor(
     status: number,
@@ -37,6 +41,8 @@ export class ServerApiError extends Error {
     code?: string,
     body?: unknown,
     headers?: Record<string, string>,
+    traceId?: string,
+    path?: string,
   ) {
     super(message);
     this.name = "ServerApiError";
@@ -44,6 +50,8 @@ export class ServerApiError extends Error {
     this.code = code;
     this.body = body;
     this.headers = headers;
+    this.traceId = traceId;
+    this.path = path;
   }
 }
 
@@ -104,6 +112,25 @@ function readErrorMessage(body: unknown): {
   return {};
 }
 
+/**
+ * Extract the correlation seed fields (`traceId`, `path`) from an
+ * `ErrorResponse`-shaped body. There is no dedicated correlation header
+ * contract; `ErrorResponse.traceId` is the documented trace identifier.
+ */
+export function parseErrorTraceAndPath(body: unknown): {
+  traceId?: string;
+  path?: string;
+} {
+  if (!body || typeof body !== "object") return {};
+  const record = body as { traceId?: unknown; path?: unknown };
+  const readString = (value: unknown): string | undefined =>
+    typeof value === "string" && value ? value : undefined;
+  return {
+    traceId: readString(record.traceId),
+    path: readString(record.path),
+  };
+}
+
 function toServerError(err: unknown): never {
   if (err instanceof AxiosError) {
     if (axios.isCancel(err) || err.code === "ERR_CANCELED") {
@@ -111,12 +138,15 @@ function toServerError(err: unknown): never {
     }
     const body = err.response?.data;
     const parsed = readErrorMessage(body);
+    const { traceId, path } = parseErrorTraceAndPath(body);
     throw new ServerApiError(
       err.response?.status ?? 0,
       parsed.message ?? err.message ?? "Network error",
       parsed.code,
       body,
       err.response?.headers as Record<string, string> | undefined,
+      traceId,
+      path,
     );
   }
   if (err instanceof Error) throw new ServerApiError(0, err.message);

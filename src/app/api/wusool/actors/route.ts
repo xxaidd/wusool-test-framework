@@ -61,6 +61,7 @@ export async function POST(request: Request): Promise<Response> {
         data: {
           email: input.email ?? "",
           password: input.password ?? "",
+          confirmPassword: input.password ?? "",
           fullName: input.name,
         },
       });

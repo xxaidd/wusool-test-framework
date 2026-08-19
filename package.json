@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:contract": "vitest run --config vitest.contract.config.mts",
     "audit:boundaries": "node scripts/audit-boundaries.mjs"
   },
   "dependencies": {

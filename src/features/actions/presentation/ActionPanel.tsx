@@ -15,11 +15,11 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  actionsForActor,
   buildBody,
   buildPath,
   buildQuery,
   getAction,
+  verifiedActionsForActor,
 } from "@/features/actions/application/actionCatalog";
 import {
   type ActionOutcome,
@@ -131,7 +131,7 @@ export function ActionPanel({
   const actorActions = useMemo(
     () =>
       selected
-        ? actionsForActor(
+        ? verifiedActionsForActor(
             selected.type,
             category === "all" ? undefined : category,
           )
@@ -141,7 +141,7 @@ export function ActionPanel({
 
   const categories = useMemo(() => {
     if (!selected) return [];
-    return actionsForActor(selected.type)
+    return verifiedActionsForActor(selected.type)
       .map((a) => a.category)
       .filter((c, i, arr) => arr.indexOf(c) === i);
   }, [selected]);

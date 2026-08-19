@@ -70,6 +70,7 @@ export function createServerActionRepository(
           if (err.headers) {
             correlation.traceId = extractTraceId(err.headers, err.body);
           }
+          correlation.traceId ??= err.traceId;
           const response = redactResponse({
             statusCode: err.status,
             headers: err.headers ?? {},
