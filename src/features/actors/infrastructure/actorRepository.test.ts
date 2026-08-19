@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
-import { bffRequest } from "@/infrastructure/bff/client";
+import { BffError, bffRequest } from "@/infrastructure/bff/client";
 import { ActorSource, ActorType } from "../domain/actor.types";
 import { configureAdmin, createActor, discoverActors } from "./actorRepository";
 
@@ -29,18 +29,50 @@ describe("discoverActors", () => {
       { id: "11", type: ActorType.Bus, label: "ABC" },
     ]);
 
-    const actors = await discoverActors(env, [
-      ActorType.Passenger,
-      ActorType.Driver,
-      ActorType.Bus,
-    ]);
-
-    expect(mockedRequest).toHaveBeenCalledWith("/api/wusool/actors/search", {
-      env: { envId: "local", baseUrl: undefined },
+    const result = await discoverActors({
+      envId: BackendEnvId.Local,
       types: [ActorType.Passenger, ActorType.Driver, ActorType.Bus],
     });
-    expect(actors).toHaveLength(1);
-    expect(actors[0]).toMatchObject({ id: "11", type: ActorType.Bus });
+
+    expect(result.status).toBe("success");
+    expect(result).toMatchObject({
+      status: "success",
+      actors: [{ id: "11", type: ActorType.Bus }],
+    });
+    expect(mockedRequest).toHaveBeenCalledWith(
+      "/api/wusool/actors/search",
+      {
+        env: { envId: "local", baseUrl: undefined },
+        types: [ActorType.Passenger, ActorType.Driver, ActorType.Bus],
+      },
+      { signal: undefined },
+    );
+  });
+
+  it("rejects an unknown environment", async () => {
+    const result = await discoverActors({
+      envId: "nope",
+      types: [ActorType.Passenger],
+    });
+
+    expect(result.status).toBe("failure");
+    if (result.status !== "failure") throw new Error("expected failure");
+    expect(result.error.code).toBe("ENVIRONMENT");
+  });
+
+  it("surfaces a BFF failure with its code and status", async () => {
+    const error = new BffError(401, "Admin auth", "ADMIN_AUTH_REQUIRED");
+    mockedRequest.mockRejectedValue(error);
+
+    const result = await discoverActors({
+      envId: BackendEnvId.Local,
+      types: [ActorType.Passenger],
+    });
+
+    expect(result).toMatchObject({
+      status: "failure",
+      error: { code: "ADMIN_AUTH_REQUIRED", message: "Admin auth" },
+    });
   });
 });
 
