@@ -162,4 +162,117 @@ describe("runAction", () => {
     });
     expect(outcome.position).toEqual({ lat: 24.7, lng: 46.6 });
   });
+
+  function recordingRecorder() {
+    return { start: vi.fn(), record: vi.fn(), stop: vi.fn() };
+  }
+
+  it("records a successful outcome through the provided recorder", async () => {
+    const recorder = recordingRecorder();
+    const outcome = await runAction({
+      env,
+      actor,
+      action: mustGet("driver.startTrip"),
+      args: { id: "42" },
+      token: "secret-token",
+      repo: repoReturning({
+        status: "success",
+        statusCode: 201,
+        data: { id: 42 },
+        correlation: { correlationId: "req_abc", traceId: "trace-1" },
+      }),
+      recorder,
+      summary: "Started the trip",
+      actionLabel: "Start trip",
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.classification).toEqual({ kind: "success" });
+    expect(recorder.record).toHaveBeenCalledTimes(1);
+    const input = recorder.record.mock.calls[0][0];
+    expect(input).toMatchObject({
+      source: "manual",
+      actor: { id: "7", label: "Driver 7", type: "driver" },
+      action: {
+        id: "driver.startTrip",
+        label: "Start trip",
+        categoryId: "trip",
+      },
+      summary: "Started the trip",
+      status: "success",
+      baseUrl: "http://localhost:5002",
+    });
+    expect(input.execution.requestId).toBe("req_abc");
+    expect(input.execution.correlation).toEqual({
+      correlationId: "req_abc",
+      traceId: "trace-1",
+    });
+    expect(input.execution.classification).toEqual({ kind: "success" });
+  });
+
+  it("records a failed outcome with the repository classification", async () => {
+    const recorder = recordingRecorder();
+    await runAction({
+      env,
+      actor,
+      action: mustGet("driver.startTrip"),
+      args: { id: "42" },
+      token: "secret-token",
+      repo: repoReturning({
+        status: "failure",
+        classification: {
+          kind: "infrastructure",
+          subtype: "backend-unavailable",
+        },
+        statusCode: 500,
+        message: "boom",
+        correlation: {},
+      }),
+      recorder,
+      summary: "Started the trip",
+    });
+
+    const input = recorder.record.mock.calls[0][0];
+    expect(input.status).toBe("failure");
+    expect(input.error).toBe("boom");
+    expect(input.execution.classification).toEqual({
+      kind: "infrastructure",
+      subtype: "backend-unavailable",
+    });
+  });
+
+  it("does not record needs-auth outcomes", async () => {
+    const recorder = recordingRecorder();
+    const outcome = await runAction({
+      env,
+      actor,
+      action: mustGet("driver.startTrip"),
+      args: { id: "42" },
+      repo: repoReturning({ status: "needs-auth", correlation: {} }),
+      recorder,
+      summary: "Started the trip",
+    });
+
+    expect(outcome.needsAuth).toBe(true);
+    expect(recorder.record).not.toHaveBeenCalled();
+  });
+
+  it("does not record when no recorder is provided", async () => {
+    const outcome = await runAction({
+      env,
+      actor,
+      action: mustGet("driver.startTrip"),
+      args: { id: "42" },
+      token: "secret-token",
+      repo: repoReturning({
+        status: "success",
+        statusCode: 201,
+        data: { id: 42 },
+        correlation: {},
+      }),
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.classification).toEqual({ kind: "success" });
+  });
 });

@@ -10,6 +10,7 @@ import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { Modal, ModalFooter } from "@/shared/components/Modal";
+import { useSessionRecorder } from "@/shared/hooks/useSessionRecorder";
 import { useI18n } from "@/shared/i18n";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
@@ -48,6 +49,7 @@ export function EnvironmentModal({
   const placed = useActorStore((s) => s.placed);
   const sessionEvents = useSessionStore((s) => s.events);
   const sessionRecording = useSessionStore((s) => s.recording);
+  const recorder = useSessionRecorder();
 
   const [selected, setSelected] = useState<BackendEnvironment>(env);
   const [customUrl, setCustomUrl] = useState(env.custom ? env.baseUrl : "");
@@ -106,13 +108,14 @@ export function EnvironmentModal({
           : { mode: "token", token: adminToken.trim() },
       );
       setAdminConfigured(true);
-      useSessionStore.getState().addEvent({
+      recorder.record({
         source: SessionSource.System,
-        actorId: "system",
-        actorLabel: "System",
-        actionId: "admin.auth.login",
-        actionLabel: t("environment.adminUpdated"),
-        categoryId: "environment",
+        actor: { id: "system", label: "System" },
+        action: {
+          id: "admin.auth.login",
+          label: t("environment.adminUpdated"),
+          categoryId: "environment",
+        },
         summary: t("environment.adminConfigured"),
         status: "info",
       });

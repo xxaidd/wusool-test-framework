@@ -2,31 +2,10 @@
 
 import { create } from "zustand";
 import { exportSession as exportSessionUsecase } from "@/features/sessions/application/exportSession";
+import { createSessionEvent } from "@/features/sessions/application/sessionEventFactory";
 import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { browserSessionDownloader } from "@/features/sessions/infrastructure/sessionDownloader";
-import {
-  redactHeaders,
-  redactStringifiedBody,
-} from "@/shared/redaction/redact";
-
-export interface NewEvent {
-  source: SessionSource;
-  actorId: string;
-  actorLabel: string;
-  actorType?: SessionEvent["actorType"];
-  actionId: string;
-  actionLabel: string;
-  categoryId: string;
-  summary: string;
-  status: SessionEvent["status"];
-  durationMs?: number;
-  statusCode?: number;
-  request?: SessionEvent["request"];
-  response?: SessionEvent["response"];
-  error?: string;
-  position?: SessionEvent["position"];
-}
 
 interface SessionState {
   recording: boolean;
@@ -39,7 +18,7 @@ interface SessionState {
   pause: () => void;
   resume: () => void;
   clear: () => void;
-  addEvent: (e: NewEvent) => void;
+  appendEvent: (ev: SessionEvent) => void;
   setEnvId: (envId: string) => void;
   finalizeForEnvironmentSwitch: (input: {
     oldLabel: string;
@@ -49,8 +28,6 @@ interface SessionState {
   }) => void;
   exportSession: () => void;
 }
-
-let counter = 0;
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   recording: false,
@@ -78,19 +55,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     newEnvId,
     eventLabel,
   }) => {
-    const now = new Date().toISOString();
-    const switchEvent: SessionEvent = {
-      id: `ev_${Date.now()}_${++counter}`,
-      ts: now,
+    const switchEvent = createSessionEvent({
       source: SessionSource.System,
-      actorId: "system",
-      actorLabel: "System",
-      actionId: "environment.switch",
-      actionLabel: eventLabel,
-      categoryId: "environment",
+      actor: { id: "system", label: "System" },
+      action: {
+        id: "environment.switch",
+        label: eventLabel,
+        categoryId: "environment",
+      },
       summary: `${oldLabel} → ${newLabel}`,
       status: "info",
-    };
+    });
     // Environment switches finalize the in-memory session: the switch event is
     // retained as a boundary marker and all prior events are reset so no event
     // is ever reused across environments (FR-36).
@@ -103,37 +78,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     });
   },
 
-  addEvent: (e) => {
+  appendEvent: (ev) => {
     const s = get();
     if (!s.recording || s.paused) return;
-    const event: SessionEvent = {
-      ...e,
-      request: e.request
-        ? {
-            method: e.request.method,
-            url: e.request.url,
-            headers: redactHeaders(e.request.headers),
-            body:
-              e.request.body != null
-                ? redactStringifiedBody(e.request.body)
-                : undefined,
-          }
-        : undefined,
-      response: e.response
-        ? {
-            status: e.response.status,
-            headers: redactHeaders(e.response.headers),
-            body:
-              e.response.body != null
-                ? redactStringifiedBody(e.response.body)
-                : "",
-          }
-        : undefined,
-      error: e.error,
-      id: `ev_${Date.now()}_${++counter}`,
-      ts: new Date().toISOString(),
-    };
-    set((st) => ({ events: [...st.events, event] }));
+    set((st) => ({ events: [...st.events, ev] }));
   },
 
   exportSession: () => {

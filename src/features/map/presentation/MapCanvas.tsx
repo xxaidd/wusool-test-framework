@@ -15,11 +15,11 @@ import { createRouteFollower } from "@/features/map/application/movement";
 import type { LatLng } from "@/features/map/domain/map.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Button } from "@/shared/components/Button";
+import { useSessionRecorder } from "@/shared/hooks/useSessionRecorder";
 import { useI18n } from "@/shared/i18n";
 import { actorColors, tokens } from "@/shared/lib/tokens";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
-import { useSessionStore } from "@/shared/store/session.store";
 
 const ICONS: Record<string, string> = {
   passenger:
@@ -56,7 +56,7 @@ export function MapCanvas() {
   const placeActor = useActorStore((s) => s.placeActor);
   const moveActor = useActorStore((s) => s.moveActor);
   const selectedActorId = useActorStore((s) => s.selectedActorId);
-  const addEvent = useSessionStore((s) => s.addEvent);
+  const recorder = useSessionRecorder();
   const envId = useEnvironmentStore((s) => s.env.id);
 
   const mapRef = useRef<L.Map | null>(null);
@@ -84,13 +84,17 @@ export function MapCanvas() {
 
   const onDrop = (actorId: string, lat: number, lng: number) => {
     placeActor(actorId, lat, lng);
-    addEvent({
+    recorder.record({
       source: SessionSource.System,
-      actorId,
-      actorLabel: workspace.find((a) => a.id === actorId)?.label || actorId,
-      actionId: "map.place",
-      actionLabel: t("map.placeActor"),
-      categoryId: "location",
+      actor: {
+        id: actorId,
+        label: workspace.find((a) => a.id === actorId)?.label || actorId,
+      },
+      action: {
+        id: "map.place",
+        label: t("map.placeActor"),
+        categoryId: "location",
+      },
       summary: `${t("map.placementDone")}`,
       status: "info",
       position: { lat, lng },
@@ -121,15 +125,19 @@ export function MapCanvas() {
       },
       onComplete: (pos) => {
         setFollowing(false);
-        addEvent({
+        recorder.record({
           source: SessionSource.Workflow,
-          actorId: followActorId,
-          actorLabel:
-            workspaceRef.current.find((a) => a.id === followActorId)?.label ||
-            followActorId,
-          actionId: "map.follow",
-          actionLabel: t("map.followRoute"),
-          categoryId: "location",
+          actor: {
+            id: followActorId,
+            label:
+              workspaceRef.current.find((a) => a.id === followActorId)?.label ||
+              followActorId,
+          },
+          action: {
+            id: "map.follow",
+            label: t("map.followRoute"),
+            categoryId: "location",
+          },
           summary: `${t("map.following")} (${route.length} pts)`,
           status: "success",
           position: { lat: pos.lat, lng: pos.lng },
@@ -143,7 +151,7 @@ export function MapCanvas() {
       followerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [following, followActorId, route, speed, addEvent, moveActor, t]);
+  }, [following, followActorId, route, speed, recorder, moveActor, t]);
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop target for placing actors on the map
