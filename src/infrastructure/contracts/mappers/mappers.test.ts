@@ -14,6 +14,7 @@ import {
   tripWithoutDepartureFixture,
 } from "../__fixtures__/trips";
 import { userFixture, userWithoutNamesFixture } from "../__fixtures__/users";
+import type { BookableTripDto } from "../schemas/entity";
 import { bookingMapper } from "./bookingMapper";
 import { busMapper } from "./busMapper";
 import { routeMapper } from "./routeMapper";
@@ -55,6 +56,19 @@ describe("tripMapper", () => {
     expect(tripMapper(tripWithoutDepartureFixture).label).toBe(
       "Airport Express · 4002",
     );
+  });
+
+  it("resolves a localized routeName and preserves routeId as meta", () => {
+    const localizedTrip = {
+      id: 88,
+      routeId: "r9",
+      routeName: { en: "Kufa Line", ar: "خط الكوفة" },
+      departureTime: "2026-08-20T09:00:00Z",
+    } as BookableTripDto;
+
+    const mapped = tripMapper(localizedTrip);
+    expect(mapped.label).toBe("Kufa Line · 2026-08-20T09:00:00Z");
+    expect(mapped.meta?.routeId).toBe("r9");
   });
 });
 

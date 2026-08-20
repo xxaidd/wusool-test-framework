@@ -369,6 +369,9 @@ export const en = {
     selectRoute: "Select route",
     selectStop: "Select stop",
     noResult: "No results",
+    searchError: "Couldn't load options",
+    loadMore: "Load more",
+    needsAuth: "Authenticate this actor first.",
   },
   common: {
     cancel: "Cancel",

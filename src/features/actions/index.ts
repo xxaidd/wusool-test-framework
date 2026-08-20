@@ -21,6 +21,7 @@ export type {
   EntityOption,
   EntityRepository,
   EntitySearchInput,
+  EntitySearchResult,
 } from "./application/EntityRepository";
 export {
   entityKindSchema,
@@ -31,6 +32,13 @@ export {
   type ExecuteActionInput,
   executeAction,
 } from "./application/executeAction";
+export {
+  DEFAULT_DATASET_MAX,
+  loadEntityDataset,
+} from "./application/loadEntityDataset";
 export * from "./domain/action.types";
 export { bffActionRepository } from "./infrastructure/actionRepository";
-export { loadEntity } from "./infrastructure/entityRepository";
+export {
+  entityRepositoryFor,
+  searchEntityPage,
+} from "./infrastructure/entityRepository";

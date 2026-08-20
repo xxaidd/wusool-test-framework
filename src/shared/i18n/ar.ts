@@ -365,6 +365,9 @@ export const ar: Messages = {
     selectRoute: "اختر مسارًا",
     selectStop: "اختر محطة",
     noResult: "لا توجد نتائج",
+    searchError: "تعذر تحميل الخيارات",
+    loadMore: "تحميل المزيد",
+    needsAuth: "الرجاء تسجيل دخول هذا العنصر أولاً",
   },
   common: {
     cancel: "إلغاء",

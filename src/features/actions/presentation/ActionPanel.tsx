@@ -30,11 +30,10 @@ import {
   type ActionCategory,
   type ActionDef,
   ActionMode,
-  type EntityKind,
+  EntityKind,
   type ExecutionMode,
 } from "@/features/actions/domain/action.types";
 import { bffActionRepository } from "@/features/actions/infrastructure/actionRepository";
-import { loadEntity } from "@/features/actions/infrastructure/entityRepository";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import { actorWorkspaceKeyOf } from "@/features/actors/domain/actor.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
@@ -42,7 +41,6 @@ import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Input } from "@/shared/components/Input";
-import { SearchSelect } from "@/shared/components/SearchSelect";
 import { Select } from "@/shared/components/Select";
 import { Spinner } from "@/shared/components/Spinner";
 import { Textarea } from "@/shared/components/Textarea";
@@ -53,6 +51,7 @@ import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
 import { useUIStore } from "@/shared/store/ui.store";
+import { EntitySearchSelect } from "./EntitySearchSelect";
 
 function categoryIcon(c: ActionCategory): LucideIcon {
   switch (c) {
@@ -416,17 +415,19 @@ export function ActionPanel({
             {action.metadata.fields.map((f) => {
               if (f.kind === "entity") {
                 return (
-                  <SearchSelect
+                  <EntitySearchSelect
                     key={f.id}
-                    label={t(f.labelKey)}
-                    placeholder={t("action.selectEntity")}
-                    searchPlaceholder={t("action.searchEntity")}
-                    loadingLabel={t("action.searchLoading")}
-                    emptyLabel={t("entities.noResult")}
+                    env={env}
+                    kind={f.entity as EntityKind}
+                    actorId={selected?.id}
+                    enabled={Boolean(selected)}
+                    labelKey={f.labelKey}
                     value={args[f.id] as string}
-                    onSelect={(v) => setArg(f.id, v)}
-                    load={(q) =>
-                      loadEntity(env, f.entity as EntityKind, q, selected.id)
+                    onChange={(v) => setArg(f.id, v)}
+                    filterMeta={
+                      f.entity === EntityKind.Trip && args.routeId
+                        ? { routeId: String(args.routeId) }
+                        : undefined
                     }
                   />
                 );
