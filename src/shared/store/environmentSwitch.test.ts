@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
+import { createSessionEvent } from "@/features/sessions/application/sessionEventFactory";
 import { SessionSource } from "@/features/sessions/domain/session.types";
+import { getActiveSessionRef } from "@/features/sessions/infrastructure/indexedDbSessionStorage";
 import { BffError, bffRequest } from "@/infrastructure/bff/client";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
@@ -45,16 +47,19 @@ function seedWorkspace() {
   useAuthStore.getState().setAuthenticated("7", "p7@example.com");
   useSessionStore.getState().setEnvId(BackendEnvId.Local);
   useSessionStore.getState().start();
-  useSessionStore.getState().addEvent({
-    source: SessionSource.Manual,
-    actorId: "7",
-    actorLabel: "Passenger 7",
-    actionId: "passenger.myBookings",
-    actionLabel: "My bookings",
-    categoryId: "booking",
-    summary: "Listed my bookings",
-    status: "success",
-  });
+  useSessionStore.getState().appendEvent(
+    createSessionEvent({
+      source: SessionSource.Manual,
+      actor: { id: "7", label: "Passenger 7" },
+      action: {
+        id: "passenger.myBookings",
+        label: "My bookings",
+        categoryId: "booking",
+      },
+      summary: "Listed my bookings",
+      status: "success",
+    }),
+  );
 }
 
 describe("switchEnvironment", () => {
@@ -80,6 +85,9 @@ describe("switchEnvironment", () => {
       startedAt: undefined,
       envId: undefined,
       events: [],
+      sessionId: undefined,
+      name: undefined,
+      storageError: undefined,
     });
     mockedBffRequest.mockReset();
   });
@@ -133,6 +141,10 @@ describe("switchEnvironment", () => {
       status: "info",
       summary: "Local → Staging",
     });
+    // The active session identity is cleared so reload never resumes the old
+    // environment's session across environments.
+    expect(session.sessionId).toBeUndefined();
+    expect(getActiveSessionRef()).toBeNull();
   });
 
   it("keeps the environment when the backend is unreachable but valid", async () => {

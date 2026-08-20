@@ -1,4 +1,5 @@
 import type { ActorType } from "@/features/actors/domain/actor.types";
+import type { FailureClassification } from "@/shared/errors";
 import type { ExecutionRecord } from "../domain/evidence.types";
 import type { SessionSource } from "../domain/session.types";
 
@@ -15,6 +16,12 @@ export interface RecordEventInput {
   status: "success" | "failure" | "info";
   execution?: ExecutionRecord;
   position?: { lat: number; lng: number };
+  /** Human-readable error message (e.g. a failed action's message). */
+  error?: string;
+  /** Distinguishes normal failed actions from infrastructure failures. */
+  classification?: FailureClassification;
+  /** Backend base URL used to render request URLs from the active environment. */
+  baseUrl?: string;
 }
 
 /**

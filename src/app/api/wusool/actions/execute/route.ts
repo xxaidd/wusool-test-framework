@@ -7,6 +7,7 @@ import {
 } from "@/features/actions/application/actionCatalog";
 import { runAction } from "@/features/actions/application/runAction";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
+import { resolveActorToken } from "@/infrastructure/server/actorAuth";
 import { getDevCredentialVault } from "@/infrastructure/server/credentialVaultDev";
 import { resolveEnvironment } from "@/infrastructure/server/environmentResolver";
 import { createServerActionRepository } from "@/infrastructure/server/serverActionRepository";
@@ -32,8 +33,9 @@ const executeSchema = z.object({
 /**
  * Execute a framework action on behalf of a browser actor. The action is
  * resolved from the catalog, the actor's token is resolved from the
- * server-side vault, and the request is executed with a fresh correlation id.
- * `needs-auth` is decided here from the vault without hitting the backend.
+ * server-side vault (silently refreshing it when expired), and the request is
+ * executed with a fresh correlation id. `needs-auth` is decided here from the
+ * vault without hitting the backend.
  */
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -59,9 +61,7 @@ export async function POST(request: Request): Promise<Response> {
 
     let token: string | undefined;
     if (action.requiresAuth) {
-      const ctx = await vault.resolve(actor.id, env.id);
-      const expired = ctx?.expiresAt != null && ctx.expiresAt <= Date.now();
-      if (ctx && !expired) token = ctx.accessToken;
+      token = (await resolveActorToken(vault, env, actor.id)) ?? undefined;
     }
 
     const repo = createServerActionRepository(correlationId);

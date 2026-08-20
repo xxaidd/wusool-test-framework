@@ -32,6 +32,8 @@ interface ActorState {
   actorById: (id: string) => ActorRef | undefined;
 }
 
+export type { ActorState };
+
 export const useActorStore = create<ActorState>()(
   persist(
     (set, get) => ({
@@ -112,10 +114,35 @@ export const useActorStore = create<ActorState>()(
         placed: s.placed,
         selectedActorId: s.selectedActorId,
       }),
+      // The server-side vault is in-memory and empty after a reload, so
+      // persisted workspace actors must never be restored as "authenticated"
+      // (mirrors environment.store resetting `adminConfigured:false`).
+      merge: mergeActorState,
     },
   ),
 );
 
 export function actorTypeLabel(t: ActorType): string {
   return t === AT.Passenger ? "passenger" : t === AT.Driver ? "driver" : "bus";
+}
+
+/**
+ * Persist-rehydration merge for the actor store. The server-side vault is
+ * in-memory and empty after a reload, so persisted workspace actors must never
+ * be restored as "authenticated" (mirrors environment.store resetting
+ * `adminConfigured:false`). Exported for deterministic unit testing.
+ */
+export function mergeActorState(
+  persisted: unknown,
+  current: ActorState,
+): ActorState {
+  const p = persisted as Partial<ActorState> | undefined;
+  return {
+    ...current,
+    ...p,
+    workspace: (p?.workspace ?? []).map((a) => ({
+      ...a,
+      authenticated: false,
+    })),
+  };
 }

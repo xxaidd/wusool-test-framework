@@ -34,11 +34,6 @@ import {
 import { bffActionRepository } from "@/features/actions/infrastructure/actionRepository";
 import { loadEntity } from "@/features/actions/infrastructure/entityRepository";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
-import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
-import type {
-  SessionRequest,
-  SessionResponse,
-} from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
@@ -48,16 +43,12 @@ import { SearchSelect } from "@/shared/components/SearchSelect";
 import { Select } from "@/shared/components/Select";
 import { Spinner } from "@/shared/components/Spinner";
 import { Textarea } from "@/shared/components/Textarea";
+import { useSessionRecorder } from "@/shared/hooks/useSessionRecorder";
 import { useI18n } from "@/shared/i18n";
-import type {
-  SanitizedRequest,
-  SanitizedResponse,
-} from "@/shared/redaction/redact";
 import { redactRequest } from "@/shared/redaction/redact";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
-import { useSessionStore } from "@/shared/store/session.store";
 import { useUIStore } from "@/shared/store/ui.store";
 
 function categoryIcon(c: ActionCategory): LucideIcon {
@@ -77,30 +68,6 @@ function categoryIcon(c: ActionCategory): LucideIcon {
   }
 }
 
-function toSessionRequest(
-  env: BackendEnvironment,
-  req: SanitizedRequest,
-): SessionRequest {
-  const qs =
-    req.query && Object.keys(req.query).length
-      ? `?${new URLSearchParams(req.query).toString()}`
-      : "";
-  return {
-    method: req.method,
-    url: `${env.baseUrl}${req.path}${qs}`,
-    headers: req.headers,
-    body: req.body,
-  };
-}
-
-function toSessionResponse(res: SanitizedResponse): SessionResponse {
-  return {
-    status: res.statusCode,
-    headers: res.headers,
-    body: res.body ?? "",
-  };
-}
-
 export function ActionPanel({
   onRequestAuth,
 }: {
@@ -113,7 +80,7 @@ export function ActionPanel({
     s.workspace.find((a) => a.id === s.selectedActorId),
   );
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const addEvent = useSessionStore((s) => s.addEvent);
+  const recorder = useSessionRecorder();
   const actionMode = useUIStore((s) => s.actionMode);
   const setActionMode = useUIStore((s) => s.setActionMode);
 
@@ -181,6 +148,18 @@ export function ActionPanel({
       selected.lat != null && selected.lng != null
         ? { lat: selected.lat, lng: selected.lng }
         : undefined;
+    const recordBase = {
+      source: SessionSource.Manual,
+      actor: { id: selected.id, label: selected.label, type: selected.type },
+      action: {
+        id: action.id,
+        label: t(action.labelKey),
+        categoryId: action.category,
+      },
+      summary: t(action.summaryKey),
+      position: pos,
+      baseUrl: env.baseUrl,
+    };
     let outcome: ActionOutcome;
     try {
       outcome = await runAction({
@@ -191,10 +170,19 @@ export function ActionPanel({
         position: pos,
         repo: bffActionRepository,
         signal: abortRef.current.signal,
+        recorder,
+        summary: t(action.summaryKey),
+        actionLabel: t(action.labelKey),
       });
     } catch (err) {
-      // Cancellation is expected (user clicked cancel); do not record it.
       if (err instanceof Error && err.name === "AbortError") {
+        // User cancellation is evidence: record a cancelled event (FR-38).
+        recorder.record({
+          ...recordBase,
+          status: "info",
+          error: t("common.cancel"),
+          classification: { kind: "infrastructure", subtype: "cancelled" },
+        });
         setExecuting(false);
         return;
       }
@@ -210,6 +198,12 @@ export function ActionPanel({
         durationMs: 0,
         error: err instanceof Error ? err.message : "Unknown error",
       };
+      recorder.record({
+        ...recordBase,
+        status: "failure",
+        error: outcome.error,
+        classification: { kind: "infrastructure", subtype: "network" },
+      });
     }
     setResult(outcome);
     setExecuting(false);
@@ -218,28 +212,6 @@ export function ActionPanel({
       onRequestAuth(selected, execute);
       return;
     }
-
-    addEvent({
-      source: SessionSource.Manual,
-      actorId: selected.id,
-      actorLabel: selected.label,
-      actorType: selected.type,
-      actionId: action.id,
-      actionLabel: t(action.labelKey),
-      categoryId: action.category,
-      summary: t(action.summaryKey),
-      status: outcome.ok ? "success" : "failed",
-      durationMs: outcome.durationMs,
-      statusCode: outcome.statusCode,
-      request: outcome.request
-        ? toSessionRequest(env, outcome.request)
-        : undefined,
-      response: outcome.response
-        ? toSessionResponse(outcome.response)
-        : undefined,
-      error: outcome.error,
-      position: pos,
-    });
   };
 
   if (!selected) {

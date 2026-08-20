@@ -5,6 +5,10 @@ export interface StoredSession {
   environmentId: string;
   formatVersion: number;
   startedAt?: string;
+  /** Optional user-provided session name. */
+  name?: string;
+  /** ISO timestamp of the last write to local storage. */
+  updatedAt?: string;
   events: SessionEvent[];
 }
 

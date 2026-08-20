@@ -86,16 +86,16 @@ describe("auth security surface", () => {
     const actorState = stateSnapshot(useActorStore.getState());
     const authState = stateSnapshot(useAuthStore.getState());
     const persistedActor = localStorageValue("wusool-actors");
-    const persistedAuth = localStorageValue("wusool-auth");
 
-    for (const payload of [
-      actorState,
-      authState,
-      persistedActor,
-      persistedAuth,
-    ]) {
+    for (const payload of [actorState, authState, persistedActor]) {
       expect(payload).not.toMatch(SECRET_KEY_RE);
     }
+  });
+
+  it("the auth store is in-memory only and never persisted", () => {
+    // Mirrors the vault: ephemeral auth state must not survive a reload.
+    expect(sessionStorageValue("wusool-auth")).toBe("");
+    expect(localStorageValue("wusool-auth")).toBe("");
   });
 
   it("auth store holds only booleans and display emails", () => {
