@@ -128,6 +128,22 @@ export const ar: Messages = {
     general: "عام",
     searchLoading: "جارٍ تحميل الخيارات…",
     none: "(بدون)",
+    invalidTest: "السماح بطلب غير صالح (وضع الاختبار)",
+    missingRequired: "أكمل الحقول المطلوبة للتنفيذ.",
+    executionId: "التنفيذ",
+    refreshWarning: "تعذّر تحديث الحالة المطلوبة من الخلفية.",
+    validationFailed: "المدخلات المُرسلة غير صالحة لهذا الإجراء.",
+  },
+  result: {
+    actionFailed: "فشل الإجراء لـ {actor}.",
+    passenger: {
+      reserved: "حجز {actor} الرحلة رقم #{trip}.",
+      cancelled: "أُلغي حجز #{booking} بواسطة {actor}.",
+      listed: "عرض {actor} حجوزاته.",
+      discovered: "اكتشف {actor} رحلات قابلة للحجز.",
+      hailed: "استدعى {actor} الرحلة رقم #{trip}.",
+      rated: "قيّم {actor} الرحلة.",
+    },
   },
   categories: {
     trip: "رحلة",
@@ -159,6 +175,8 @@ export const ar: Messages = {
     location: "وصف الموقع",
     shift: "الوردية",
     id: "المعرف",
+    required: "هذا الحقل مطلوب.",
+    invalid: "هذه القيمة غير صالحة.",
   },
   actions: {
     passenger: {

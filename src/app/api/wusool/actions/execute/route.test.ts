@@ -3,7 +3,10 @@ import {
   getDevCredentialVault,
   resetDevCredentialVault,
 } from "@/infrastructure/server/credentialVaultDev";
-import { serverRequest } from "@/infrastructure/server/wusoolServerClient";
+import {
+  ServerApiError,
+  serverRequest,
+} from "@/infrastructure/server/wusoolServerClient";
 import { POST } from "./route";
 
 vi.mock("@/infrastructure/server/wusoolServerClient", async (importActual) => {
@@ -174,5 +177,116 @@ describe("POST /api/wusool/actions/execute", () => {
 
     expect(res.status).toBe(400);
     expect(json.ok).toBe(false);
+  });
+
+  it("returns a unique execution id and a human summary even for needs-auth", async () => {
+    const res = await POST(
+      req({ ...base, actionId: "passenger.myBookings", args: {} }),
+    );
+    const json = (await res.json()) as {
+      data: { executionId: string; summary: { key: string } };
+    };
+    expect(json.data.executionId).toMatch(/^exec_/);
+    expect(json.data.summary.key).toBe("action.authRequired");
+  });
+
+  it("rejects invalid inputs in normal mode without calling the backend", async () => {
+    const res = await POST(
+      req({ ...base, actionId: "passenger.reserve", args: { busTripId: "1" } }),
+    );
+    const json = (await res.json()) as { ok: boolean; error: { code: string } };
+    expect(res.status).toBe(400);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe("VALIDATION");
+    expect(mockedServerRequest).not.toHaveBeenCalled();
+  });
+
+  it("advanced invalid-test mode bypasses normal validation", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "tok",
+    });
+    mockedServerRequest.mockRejectedValue(
+      new ServerApiError(400, "reserve failed", "BUSINESS", { error: "bad" }),
+    );
+
+    const res = await POST(
+      req({
+        ...base,
+        actionId: "passenger.reserve",
+        args: { busTripId: "1" },
+        mode: "invalid",
+      }),
+    );
+    const json = (await res.json()) as { data: { ok: boolean } };
+
+    expect(json.data.ok).toBe(false);
+    expect(mockedServerRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://localhost:5002" }),
+      "/api/v1/user-trips/reserve",
+      expect.objectContaining({ method: "POST", token: "tok" }),
+    );
+  });
+
+  it("never sends a path selector in the body when the contract keeps it in path", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "tok",
+    });
+    mockedServerRequest.mockResolvedValue({
+      status: 200,
+      data: { id: 9 },
+      headers: {},
+    });
+
+    await POST(
+      req({
+        ...base,
+        actionId: "passenger.cancelBooking",
+        args: { id: "9", reason: "plans" },
+      }),
+    );
+
+    expect(mockedServerRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "http://localhost:5002" }),
+      "/api/v1/user-trips/9/cancel",
+      expect.objectContaining({ data: { reason: "plans" } }),
+    );
+  });
+});
+
+describe("POST /api/wusool/actions/execute — result presentation", () => {
+  beforeEach(() => {
+    resetDevCredentialVault();
+    mockedServerRequest.mockReset();
+  });
+
+  it("surfaces the human-readable success summary and sanitized evidence", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "tok",
+    });
+    mockedServerRequest.mockResolvedValue({
+      status: 200,
+      data: { id: 184 },
+      headers: {},
+    });
+    const res = await POST(
+      req({
+        ...base,
+        actionId: "passenger.reserve",
+        args: { busTripId: "184", boardingStopId: "20", alightingStopId: "30" },
+      }),
+    );
+    const json = (await res.json()) as {
+      data: {
+        ok: boolean;
+        summary: { key: string; params: Record<string, string> };
+        request: { path: string };
+        response: { statusCode: number };
+      };
+    };
+    expect(json.data.ok).toBe(true);
+    expect(json.data.summary.key).toBe("result.passenger.reserved");
+    expect(json.data.summary.params.trip).toBe("184");
+    expect(json.data.request.path).toBe("/api/v1/user-trips/reserve");
+    expect(json.data.response.statusCode).toBe(200);
   });
 });

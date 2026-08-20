@@ -41,7 +41,7 @@ function seedWorkspace() {
     authenticated: true,
     source: ActorSource.Existing,
   });
-  useActorStore.getState().selectActor("7");
+  useActorStore.getState().selectActor("passenger:7");
   useAuthStore.getState().setAuthenticated("7", "p7@example.com");
   useSessionStore.getState().setEnvId(BackendEnvId.Local);
   useSessionStore.getState().start();

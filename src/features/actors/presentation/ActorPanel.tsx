@@ -17,11 +17,12 @@ import type { ActorWorkspaceGateway } from "@/features/actors/application/ActorW
 import { AddActorToWorkspaceUseCase } from "@/features/actors/application/AddActorToWorkspaceUseCase";
 import { DiscoverActorsUseCase } from "@/features/actors/application/DiscoverActorsUseCase";
 import { SelectActorUseCase } from "@/features/actors/application/SelectActorUseCase";
-import type {
-  ActorRef,
-  ActorType as AT,
+import {
+  type ActorRef,
+  ActorType,
+  type ActorType as AT,
+  actorWorkspaceKeyOf,
 } from "@/features/actors/domain/actor.types";
-import { ActorType } from "@/features/actors/domain/actor.types";
 import { logout } from "@/features/actors/infrastructure/authService";
 import { isAdminAuthRequired } from "@/infrastructure/bff/client";
 import { Badge } from "@/shared/components/Badge";
@@ -78,9 +79,10 @@ export function ActorPanel({
 
   const discoverActorsUseCase = new DiscoverActorsUseCase(discoverActors);
   const workspaceGateway: ActorWorkspaceGateway = {
-    isInWorkspace: (id) => useActorStore.getState().actorById(id) !== undefined,
+    isInWorkspace: (key) =>
+      useActorStore.getState().actorByKey(key) !== undefined,
     addToWorkspace: (actor) => useActorStore.getState().addToWorkspace(actor),
-    selectActor: (actorId) => useActorStore.getState().selectActor(actorId),
+    selectActor: (actorKey) => useActorStore.getState().selectActor(actorKey),
   };
   const addActorToWorkspaceUseCase = new AddActorToWorkspaceUseCase(
     workspaceGateway,
@@ -99,7 +101,9 @@ export function ActorPanel({
       // next action prompts for authentication again.
     }
     // Clear auth using store (keeping existing behavior for now)
-    useActorStore.getState().updateActor(a.id, { authenticated: false });
+    useActorStore
+      .getState()
+      .updateActor(actorWorkspaceKeyOf(a), { authenticated: false });
   };
 
   const onDiscover = async () => {
@@ -141,11 +145,8 @@ export function ActorPanel({
           setAdminRequired(true);
           setDiscoverError(t("actor.adminRequired"));
         } else {
-          setDiscoverError(
-            result.error instanceof Error
-              ? result.error.message
-              : t("common.networkError"),
-          );
+          const msg = result.error?.message;
+          setDiscoverError(msg ? msg : t("common.networkError"));
         }
       }
     } catch (err) {
@@ -233,7 +234,7 @@ export function ActorPanel({
           </div>
           {discovered.map((a) => (
             <div
-              key={a.id}
+              key={actorWorkspaceKeyOf(a)}
               className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-surface-variant"
             >
               <div className="flex min-w-0 items-center gap-2">
@@ -275,25 +276,26 @@ export function ActorPanel({
         )}
         {filteredWorkspace.map((a) => {
           const authed = isAuthenticated(a.id) || a.authenticated;
-          const selected = a.id === selectedActorId;
+          const aKey = actorWorkspaceKeyOf(a);
+          const selected = aKey === selectedActorId;
           return (
             // biome-ignore lint/a11y/useSemanticElements: a real <button> is invalid here — its descendants include interactive <button> controls (authenticate / sign-out / remove), which would break HTML parsing and cause hydration errors.
             <div
-              key={a.id}
+              key={aKey}
               role="button"
               tabIndex={0}
               draggable
               onDragStart={(e) => {
-                e.dataTransfer.setData("text/actor-id", a.id);
+                e.dataTransfer.setData("text/actor-key", aKey);
                 e.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => {
-                selectActorUseCase.execute(selected ? null : a.id);
+                selectActorUseCase.execute(selected ? null : aKey);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  selectActorUseCase.execute(selected ? null : a.id);
+                  selectActorUseCase.execute(selected ? null : aKey);
                 }
               }}
               className={`group mx-2 my-1 flex cursor-grab items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
@@ -328,7 +330,7 @@ export function ActorPanel({
                         // Update actor auth status through store
                         useActorStore
                           .getState()
-                          .updateActor(a.id, { authenticated: true }),
+                          .updateActor(aKey, { authenticated: true }),
                       );
                     }}
                     className="rounded-md px-1.5 py-1 text-info transition-colors hover:bg-info-container"
@@ -361,7 +363,7 @@ export function ActorPanel({
                     e.stopPropagation();
                     // Remove from workspace through store for now
                     // TODO: Consider creating a RemoveActorFromWorkspaceUseCase
-                    useActorStore.getState().removeFromWorkspace(a.id);
+                    useActorStore.getState().removeFromWorkspace(aKey);
                   }}
                   className="rounded-md px-1.5 py-1 text-danger transition-colors hover:bg-danger-container"
                   title={t("actor.remove")}

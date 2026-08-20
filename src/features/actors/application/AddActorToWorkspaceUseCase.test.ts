@@ -44,4 +44,23 @@ describe("AddActorToWorkspaceUseCase", () => {
 
     expect(addToWorkspace).not.toHaveBeenCalled();
   });
+
+  it("deduplicates by the typed workspace key, not the raw id", () => {
+    const driverWithSameId: ActorRef = {
+      ...sampleActor,
+      type: ActorType.Driver,
+    };
+    const isInWorkspace = vi.fn(() => false);
+    gateway.isInWorkspace = isInWorkspace;
+
+    const useCase = new AddActorToWorkspaceUseCase(gateway);
+    useCase.execute(sampleActor);
+    useCase.execute(driverWithSameId);
+
+    // Colliding id across actor types maps to distinct workspace keys, so both
+    // are considered absent and both are added.
+    expect(isInWorkspace).toHaveBeenNthCalledWith(1, "passenger:actor-1");
+    expect(isInWorkspace).toHaveBeenNthCalledWith(2, "driver:actor-1");
+    expect(addToWorkspace).toHaveBeenCalledTimes(2);
+  });
 });

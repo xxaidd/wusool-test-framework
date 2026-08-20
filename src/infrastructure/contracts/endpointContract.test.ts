@@ -19,26 +19,32 @@ describe("endpointContract registry", () => {
 
   it("resolves every catalog action id (verified or not)", () => {
     for (const action of actions) {
-      expect(getEndpointContract(action.contractRef), action.id).toBeDefined();
+      expect(
+        getEndpointContract(action.metadata.contractRef),
+        action.metadata.id,
+      ).toBeDefined();
     }
   });
 
   it("every verified ActionDef resolves to a verified EndpointContract", () => {
     for (const action of actions) {
-      if (!action.verified) continue;
-      const contract = getVerifiedEndpointContract(action.contractRef);
-      expect(contract, `${action.id} has no verified contract`).toBeDefined();
+      if (!action.metadata.verified) continue;
+      const contract = getVerifiedEndpointContract(action.metadata.contractRef);
+      expect(
+        contract,
+        `${action.metadata.id} has no verified contract`,
+      ).toBeDefined();
       expect(contract?.verified).toBe(true);
-      expect(contract?.method).toBe(action.method);
+      expect(contract?.method).toBe(action.transport.method);
     }
   });
 
   it("every verified contract points to a verified action (when an action exists)", () => {
-    const actionById = new Map(actions.map((a) => [a.id, a]));
+    const actionById = new Map(actions.map((a) => [a.metadata.id, a]));
     for (const contract of verifiedEndpointContracts()) {
       const action = actionById.get(contract.actionId);
       if (action) {
-        expect(action.verified, `${contract.actionId}`).toBe(true);
+        expect(action.metadata.verified, `${contract.actionId}`).toBe(true);
       }
     }
   });
@@ -46,19 +52,19 @@ describe("endpointContract registry", () => {
   it("no verified:false action is executable for any actor type", () => {
     for (const type of Object.values(ActorType)) {
       const executable = verifiedActionsForActor(type);
-      expect(executable.every((a) => a.verified)).toBe(true);
+      expect(executable.every((a) => a.metadata.verified)).toBe(true);
       expect(executable.length).toBeGreaterThan(0);
     }
   });
 
-  it("all unverified catalog entries are Driver/Bus actions", () => {
-    const unverified = actions.filter((a) => !a.verified);
+  it("all unverified catalog entries are Driver/Bus extension points", () => {
+    const unverified = actions.filter((a) => !a.metadata.verified);
     expect(unverified.length).toBeGreaterThan(0);
     for (const action of unverified) {
       expect(
-        action.actorTypes.includes(ActorType.Driver) ||
-          action.actorTypes.includes(ActorType.Bus),
-        `${action.id} should be a Driver/Bus action to be unverified`,
+        action.metadata.actorTypes.includes(ActorType.Driver) ||
+          action.metadata.actorTypes.includes(ActorType.Bus),
+        `${action.metadata.id} should be a Driver/Bus action to be unverified`,
       ).toBe(true);
     }
   });

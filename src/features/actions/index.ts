@@ -1,7 +1,15 @@
+export type { ValidationResult } from "./application/actionCatalog";
 export {
+  actionSchema,
   actions,
   actionsForActor,
+  buildBody,
+  buildPath,
+  buildQuery,
   getAction,
+  refreshDependencies,
+  summarizeAction,
+  validateActionArgs,
   verifiedActionsForActor,
 } from "./application/actionCatalog";
 export type {
@@ -18,7 +26,11 @@ export {
   entityKindSchema,
   entitySearchInputSchema,
 } from "./application/EntityRepository";
-export { runAction } from "./application/runAction";
+export {
+  type ActionExecution,
+  type ExecuteActionInput,
+  executeAction,
+} from "./application/executeAction";
 export * from "./domain/action.types";
 export { bffActionRepository } from "./infrastructure/actionRepository";
 export { loadEntity } from "./infrastructure/entityRepository";

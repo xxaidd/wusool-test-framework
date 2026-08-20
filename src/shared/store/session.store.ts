@@ -22,6 +22,7 @@ export interface NewEvent {
   status: SessionEvent["status"];
   durationMs?: number;
   statusCode?: number;
+  executionId?: string;
   request?: SessionEvent["request"];
   response?: SessionEvent["response"];
   error?: string;

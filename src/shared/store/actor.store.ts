@@ -2,34 +2,34 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type {
-  ActorRef,
-  ActorType,
-  PlacedActor,
+import {
+  type ActorRef,
+  ActorType as AT,
+  actorWorkspaceKeyOf,
+  type PlacedActor,
 } from "@/features/actors/domain/actor.types";
-import { ActorType as AT } from "@/features/actors/domain/actor.types";
 
 interface ActorState {
   workspace: ActorRef[];
   discovered: ActorRef[];
   selectedActorId: string | null;
   search: string;
-  typeFilter: ActorType | "all";
+  typeFilter: AT | "all";
   placed: PlacedActor[];
   drawingRoute: boolean;
 
   addToWorkspace: (actor: ActorRef) => void;
-  removeFromWorkspace: (id: string) => void;
+  removeFromWorkspace: (key: string) => void;
   setDiscovered: (actors: ActorRef[]) => void;
-  selectActor: (id: string | null) => void;
+  selectActor: (key: string | null) => void;
   setSearch: (q: string) => void;
-  setTypeFilter: (t: ActorType | "all") => void;
-  placeActor: (actorId: string, lat: number, lng: number) => void;
-  moveActor: (actorId: string, lat: number, lng: number) => void;
-  updateActor: (actorId: string, patch: Partial<ActorRef>) => void;
+  setTypeFilter: (t: AT | "all") => void;
+  placeActor: (actorKey: string, lat: number, lng: number) => void;
+  moveActor: (actorKey: string, lat: number, lng: number) => void;
+  updateActor: (actorKey: string, patch: Partial<ActorRef>) => void;
   setDrawingRoute: (v: boolean) => void;
   clearWorkspace: () => void;
-  actorById: (id: string) => ActorRef | undefined;
+  actorByKey: (key: string) => ActorRef | undefined;
 }
 
 export const useActorStore = create<ActorState>()(
@@ -44,15 +44,16 @@ export const useActorStore = create<ActorState>()(
       drawingRoute: false,
 
       addToWorkspace: (actor) => {
-        if (get().workspace.some((a) => a.id === actor.id)) return;
+        const key = actorWorkspaceKeyOf(actor);
+        if (get().workspace.some((a) => actorWorkspaceKeyOf(a) === key)) return;
         set((s) => ({ workspace: [...s.workspace, actor] }));
       },
 
-      removeFromWorkspace: (id) =>
+      removeFromWorkspace: (key) =>
         set((s) => ({
-          workspace: s.workspace.filter((a) => a.id !== id),
-          selectedActorId: s.selectedActorId === id ? null : s.selectedActorId,
-          placed: s.placed.filter((p) => p.actorId !== id),
+          workspace: s.workspace.filter((a) => actorWorkspaceKeyOf(a) !== key),
+          selectedActorId: s.selectedActorId === key ? null : s.selectedActorId,
+          placed: s.placed.filter((p) => p.actorKey !== key),
         })),
 
       setDiscovered: (discovered) => set({ discovered }),
@@ -62,31 +63,31 @@ export const useActorStore = create<ActorState>()(
       setSearch: (search) => set({ search }),
       setTypeFilter: (typeFilter) => set({ typeFilter }),
 
-      placeActor: (actorId, lat, lng) =>
+      placeActor: (actorKey, lat, lng) =>
         set((s) => {
-          const others = s.placed.filter((p) => p.actorId !== actorId);
+          const others = s.placed.filter((p) => p.actorKey !== actorKey);
           return {
-            placed: [...others, { actorId, lat, lng }],
+            placed: [...others, { actorKey, lat, lng }],
             workspace: s.workspace.map((a) =>
-              a.id === actorId ? { ...a, lat, lng } : a,
+              actorWorkspaceKeyOf(a) === actorKey ? { ...a, lat, lng } : a,
             ),
           };
         }),
 
-      moveActor: (actorId, lat, lng) =>
+      moveActor: (actorKey, lat, lng) =>
         set((s) => ({
           placed: s.placed.map((p) =>
-            p.actorId === actorId ? { ...p, lat, lng } : p,
+            p.actorKey === actorKey ? { ...p, lat, lng } : p,
           ),
           workspace: s.workspace.map((a) =>
-            a.id === actorId ? { ...a, lat, lng } : a,
+            actorWorkspaceKeyOf(a) === actorKey ? { ...a, lat, lng } : a,
           ),
         })),
 
-      updateActor: (actorId, patch) =>
+      updateActor: (actorKey, patch) =>
         set((s) => ({
           workspace: s.workspace.map((a) =>
-            a.id === actorId ? { ...a, ...patch } : a,
+            actorWorkspaceKeyOf(a) === actorKey ? { ...a, ...patch } : a,
           ),
         })),
 
@@ -103,7 +104,8 @@ export const useActorStore = create<ActorState>()(
           drawingRoute: false,
         }),
 
-      actorById: (id) => get().workspace.find((a) => a.id === id),
+      actorByKey: (key) =>
+        get().workspace.find((a) => actorWorkspaceKeyOf(a) === key),
     }),
     {
       name: "wusool-actors",
@@ -116,6 +118,6 @@ export const useActorStore = create<ActorState>()(
   ),
 );
 
-export function actorTypeLabel(t: ActorType): string {
+export function actorTypeLabel(t: AT): string {
   return t === AT.Passenger ? "passenger" : t === AT.Driver ? "driver" : "bus";
 }

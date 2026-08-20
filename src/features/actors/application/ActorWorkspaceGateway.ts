@@ -7,7 +7,8 @@ import type { ActorRef } from "@/features/actors/domain/actor.types";
  * Presentation adapts the store to this interface when wiring use cases.
  */
 export interface ActorWorkspaceGateway {
-  isInWorkspace(actorId: string): boolean;
+  /** `actorKey` is the typed stable workspace identity (see actorWorkspaceKeyOf). */
+  isInWorkspace(actorKey: string): boolean;
   addToWorkspace(actor: ActorRef): void;
-  selectActor(actorId: string | null): void;
+  selectActor(actorKey: string | null): void;
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AppError } from "@/shared/errors";
+import { AppError } from "@/shared/errors";
 import type { ActorRepository, SafeActor } from "./ActorRepository";
 import { actorTypeSchema } from "./ActorRepository";
 
@@ -52,18 +52,14 @@ export class DiscoverActorsUseCase {
 
       return result;
     } catch (err) {
-      if (err instanceof Error) {
-        return {
-          status: "failure",
-          error: { message: err.message, status: 500 } as AppError,
-        };
-      }
       return {
         status: "failure",
-        error: {
-          message: "An unknown error occurred",
-          status: 500,
-        } as AppError,
+        error:
+          err instanceof Error
+            ? new AppError("ACTOR_DISCOVERY", err.message, { status: 500 })
+            : new AppError("ACTOR_DISCOVERY", "Actor discovery failed", {
+                status: 500,
+              }),
       };
     }
   }

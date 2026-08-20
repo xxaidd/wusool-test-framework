@@ -62,7 +62,8 @@ describe("createServerActionRepository", () => {
       expect.objectContaining({
         method: "POST",
         token: "tok",
-        data: { id: "42" },
+        // selector `id` stays in the path only; it is not duplicated into the body.
+        data: {},
         correlationId: "req_1",
       }),
     );
@@ -74,7 +75,8 @@ describe("createServerActionRepository", () => {
     });
     if (result.status === "success") {
       expect(result.request?.path).toBe("/api/v1/bus-trips/42/start");
-      expect(result.request?.query).toEqual({ id: "42" });
+      // `id` is a path selector, not a query param — not duplicated.
+      expect(result.request?.query).toBeUndefined();
       expect(result.response?.statusCode).toBe(201);
     }
   });

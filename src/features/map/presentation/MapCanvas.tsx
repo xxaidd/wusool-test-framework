@@ -10,6 +10,7 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
+import { actorWorkspaceKeyOf } from "@/features/actors/domain/actor.types";
 import type { RouteFollower } from "@/features/map/application/movement";
 import { createRouteFollower } from "@/features/map/application/movement";
 import type { LatLng } from "@/features/map/domain/map.types";
@@ -80,14 +81,18 @@ export function MapCanvas() {
     setFollowActorId(null);
   }, [envId]);
 
-  const selected = workspace.find((a) => a.id === selectedActorId);
+  const selected = workspace.find(
+    (a) => actorWorkspaceKeyOf(a) === selectedActorId,
+  );
 
-  const onDrop = (actorId: string, lat: number, lng: number) => {
-    placeActor(actorId, lat, lng);
+  const onDrop = (actorKey: string, lat: number, lng: number) => {
+    placeActor(actorKey, lat, lng);
     addEvent({
       source: SessionSource.System,
-      actorId,
-      actorLabel: workspace.find((a) => a.id === actorId)?.label || actorId,
+      actorId: actorKey,
+      actorLabel:
+        workspace.find((a) => actorWorkspaceKeyOf(a) === actorKey)?.label ||
+        actorKey,
       actionId: "map.place",
       actionLabel: t("map.placeActor"),
       categoryId: "location",
@@ -106,7 +111,7 @@ export function MapCanvas() {
   const finishDraw = () => {
     setDrawing(false);
     if (route.length > 1 && selected) {
-      setFollowActorId(selected.id);
+      setFollowActorId(actorWorkspaceKeyOf(selected));
     }
   };
 
@@ -125,8 +130,9 @@ export function MapCanvas() {
           source: SessionSource.Workflow,
           actorId: followActorId,
           actorLabel:
-            workspaceRef.current.find((a) => a.id === followActorId)?.label ||
-            followActorId,
+            workspaceRef.current.find(
+              (a) => actorWorkspaceKeyOf(a) === followActorId,
+            )?.label || followActorId,
           actionId: "map.follow",
           actionLabel: t("map.followRoute"),
           categoryId: "location",
@@ -152,12 +158,12 @@ export function MapCanvas() {
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
-        const id = e.dataTransfer.getData("text/actor-id");
-        if (id && mapRef.current) {
+        const key = e.dataTransfer.getData("text/actor-key");
+        if (key && mapRef.current) {
           const pt = mapRef.current.mouseEventToLatLng(
             e as unknown as MouseEvent,
           );
-          onDrop(id, pt.lat, pt.lng);
+          onDrop(key, pt.lat, pt.lng);
         }
       }}
     >
@@ -175,19 +181,22 @@ export function MapCanvas() {
         {placed
           .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
           .map((p) => {
-            const actor = workspace.find((a) => a.id === p.actorId);
+            const actor = workspace.find(
+              (a) => actorWorkspaceKeyOf(a) === p.actorKey,
+            );
             const type = actor?.type || "passenger";
-            const isSel = actor?.id === selectedActorId;
+            const isSel =
+              actor != null && actorWorkspaceKeyOf(actor) === selectedActorId;
             return (
               <Marker
-                key={p.actorId}
+                key={p.actorKey}
                 position={[p.lat, p.lng]}
                 icon={markerIcon(type)}
                 draggable
                 eventHandlers={{
                   dragend: (e) => {
                     const ll = (e.target as L.Marker).getLatLng();
-                    moveActor(p.actorId, ll.lat, ll.lng);
+                    moveActor(p.actorKey, ll.lat, ll.lng);
                   },
                 }}
                 zIndexOffset={isSel ? 1000 : 0}

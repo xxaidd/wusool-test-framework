@@ -33,6 +33,7 @@ export interface SessionEvent {
   status: "success" | "failed" | "info";
   durationMs?: number;
   statusCode?: number;
+  executionId?: string;
   request?: SessionRequest;
   response?: SessionResponse;
   error?: string;

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
+import {
+  ActorSource,
+  ActorType,
+  actorWorkspaceKeyOf,
+} from "@/features/actors/domain/actor.types";
 import { safeActor } from "@/infrastructure/bff/client";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
@@ -77,11 +81,15 @@ describe("auth security surface", () => {
 
     // Replicates App.tsx onAuthSuccess after a successful modal login.
     useAuthStore.getState().setAuthenticated(actor.id, "u1@example.com");
-    useActorStore.getState().updateActor(actor.id, { authenticated: true });
+    useActorStore
+      .getState()
+      .updateActor(actorWorkspaceKeyOf(actor), { authenticated: true });
 
     // Replicates ActorPanel onSignOut.
     useAuthStore.getState().clear(actor.id);
-    useActorStore.getState().updateActor(actor.id, { authenticated: false });
+    useActorStore
+      .getState()
+      .updateActor(actorWorkspaceKeyOf(actor), { authenticated: false });
 
     const actorState = stateSnapshot(useActorStore.getState());
     const authState = stateSnapshot(useAuthStore.getState());

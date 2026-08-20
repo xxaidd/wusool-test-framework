@@ -43,7 +43,7 @@ export const bffActionRepository: ActionRepository = {
         {
           env: envRef(input.env),
           actor: safeActor(input.actor),
-          actionId: input.action.id,
+          actionId: input.action.metadata.id,
           args: input.args,
         },
         { signal: input.signal },

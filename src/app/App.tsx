@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { ActionPanel } from "@/features/actions/presentation/ActionPanel";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
+import { actorWorkspaceKeyOf } from "@/features/actors/domain/actor.types";
 import { ActorPanel } from "@/features/actors/presentation/ActorPanel";
 import { AuthPromptModal } from "@/features/actors/presentation/AuthPromptModal";
 import { CreateActorModal } from "@/features/actors/presentation/CreateActorModal";
@@ -67,9 +68,9 @@ export function App() {
     setAuthActor(actor);
   };
 
-  const onAuthSuccess = (actorId: string, email: string) => {
-    setAuthenticated(actorId, email);
-    updateActor(actorId, { authenticated: true });
+  const onAuthSuccess = (actor: ActorRef, email: string) => {
+    setAuthenticated(actor.id, email);
+    updateActor(actorWorkspaceKeyOf(actor), { authenticated: true });
     const cb = pendingCb.current;
     pendingCb.current = null;
     if (cb) cb();
