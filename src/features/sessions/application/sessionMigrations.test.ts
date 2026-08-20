@@ -1,20 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { SessionImportError } from "@/shared/errors";
 import {
-  migrateSessionFile,
   MIN_SESSION_FORMAT_VERSION,
+  migrateSessionFile,
   SESSION_MIGRATIONS,
 } from "./sessionMigrations";
 import { SESSION_FORMAT_VERSION } from "./sessionSerializer";
 
 describe("SESSION_MIGRATIONS", () => {
-  it("is an ordered registry ending at the current version", () => {
-    let expected = MIN_SESSION_FORMAT_VERSION;
-    for (const entry of SESSION_MIGRATIONS) {
-      expect(entry.from).toBe(expected);
-      expected += 1;
+  it("is an ordered contiguous chain covering every version below the current one", () => {
+    if (SESSION_MIGRATIONS.length === 0) {
+      // With the current format at v1 there are no migrations yet.
+      expect(MIN_SESSION_FORMAT_VERSION).toBe(SESSION_FORMAT_VERSION);
+      return;
     }
-    expect(expected).toBe(SESSION_FORMAT_VERSION + 1);
+    expect(SESSION_MIGRATIONS[0].from).toBe(MIN_SESSION_FORMAT_VERSION);
+    for (let i = 1; i < SESSION_MIGRATIONS.length; i += 1) {
+      expect(SESSION_MIGRATIONS[i].from).toBe(
+        SESSION_MIGRATIONS[i - 1].from + 1,
+      );
+    }
+    expect(
+      SESSION_MIGRATIONS[SESSION_MIGRATIONS.length - 1].from + 1,
+    ).toBe(SESSION_FORMAT_VERSION);
   });
 });
 

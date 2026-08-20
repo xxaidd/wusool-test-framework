@@ -20,10 +20,7 @@ export const MIN_SESSION_FORMAT_VERSION = 1;
  * Throws an actionable {@link SessionImportError} naming the supported versions
  * when the file is newer than this framework can read.
  */
-export function migrateSessionFile(
-  version: unknown,
-  raw: unknown,
-): unknown {
+export function migrateSessionFile(version: unknown, raw: unknown): unknown {
   const numeric = typeof version === "number" ? version : Number.NaN;
   if (!Number.isInteger(numeric)) {
     throw new SessionImportError(

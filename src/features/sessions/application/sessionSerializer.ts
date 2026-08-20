@@ -1,6 +1,6 @@
+import type { SessionEvent } from "../domain/session.types";
 import type { BackendLogEntry } from "./BackendLogRepository";
 import { buildStaticPaths, type StaticPath } from "./sessionPaths";
-import type { SessionEvent } from "../domain/session.types";
 
 export const SESSION_FORMAT_VERSION = 1;
 
@@ -40,9 +40,7 @@ export function serializeSession(input: {
     ...(input.sessionId != null ? { sessionId: input.sessionId } : {}),
     ...(input.name != null ? { name: input.name } : {}),
     ...(input.startedAt != null ? { startedAt: input.startedAt } : {}),
-    ...(input.environment != null
-      ? { environment: input.environment }
-      : {}),
+    ...(input.environment != null ? { environment: input.environment } : {}),
     eventCount: input.events.length,
     events: input.events,
     paths: buildStaticPaths(input.events),

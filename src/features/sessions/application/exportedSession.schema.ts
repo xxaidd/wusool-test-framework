@@ -1,7 +1,7 @@
 import { z } from "zod";
+import { sessionLogSchema } from "./sessionLog.schema";
 import { SESSION_FORMAT_VERSION } from "./sessionSerializer";
 import { sessionEventSchema } from "./storedSession.schema";
-import { sessionLogSchema } from "./sessionLog.schema";
 
 const staticPathPointSchema = z.object({
   lat: z.number(),

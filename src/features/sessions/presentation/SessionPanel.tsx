@@ -1,17 +1,24 @@
 "use client";
 
-import { CircleStop, Download, FolderOpen, Pause, Play, Trash2 } from "lucide-react";
+import {
+  CircleStop,
+  Download,
+  FolderOpen,
+  Pause,
+  Play,
+  Trash2,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import type { ImportedSession } from "@/features/sessions/application/sessionImporter";
 import {
   checkImportSize,
   importSessionFile,
 } from "@/features/sessions/application/sessionImporter";
-import { SessionImportError } from "@/shared/errors";
 import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
+import { SessionImportError } from "@/shared/errors";
 import { useI18n } from "@/shared/i18n";
 import { useSessionStore } from "@/shared/store/session.store";
 import { EventInspector } from "./EventInspector";

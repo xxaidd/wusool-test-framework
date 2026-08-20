@@ -199,7 +199,25 @@ describe("POST /api/wusool/actions/execute", () => {
     expect(json.data.response).toBeDefined();
   });
 
-  it("executes non-auth actions without a vault token", async () => {
+  it("returns needs-auth for a general listing action with no vault token (no backend hit)", async () => {
+    const res = await POST(
+      req({ ...base, actionId: "general.listStops", args: {} }),
+    );
+    const json = (await res.json()) as {
+      ok: boolean;
+      data: { needsAuth: boolean; ok: boolean };
+    };
+
+    expect(json.ok).toBe(true);
+    expect(json.data.needsAuth).toBe(true);
+    expect(json.data.ok).toBe(false);
+    expect(mockedServerRequest).not.toHaveBeenCalled();
+  });
+
+  it("attaches the actor token to a general listing action when authenticated (no auth loop)", async () => {
+    await getDevCredentialVault().setContext("7", "local", {
+      accessToken: "tok",
+    });
     mockedServerRequest.mockResolvedValue({
       status: 200,
       data: { items: [] },
@@ -215,7 +233,7 @@ describe("POST /api/wusool/actions/execute", () => {
     expect(mockedServerRequest).toHaveBeenCalledWith(
       expect.objectContaining({ baseUrl: "http://localhost:5002" }),
       "/api/v1/stops",
-      expect.objectContaining({ token: undefined }),
+      expect.objectContaining({ token: "tok" }),
     );
   });
 

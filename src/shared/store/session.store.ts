@@ -1,13 +1,13 @@
 "use client";
 
 import { create } from "zustand";
+import type { BackendLogEntry } from "@/features/sessions/application/BackendLogRepository";
 import { exportSession as exportSessionUsecase } from "@/features/sessions/application/exportSession";
 import { createSessionEvent } from "@/features/sessions/application/sessionEventFactory";
 import type { SessionEvent } from "@/features/sessions/domain/session.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { clearActiveSessionRef } from "@/features/sessions/infrastructure/indexedDbSessionStorage";
 import { browserSessionDownloader } from "@/features/sessions/infrastructure/sessionDownloader";
-import type { BackendLogEntry } from "@/features/sessions/application/BackendLogRepository";
 import { createId } from "@/shared/lib/ids";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
 import {

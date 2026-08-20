@@ -1,9 +1,9 @@
 import { SessionImportError } from "@/shared/errors";
+import type { SessionEvent } from "../domain/session.types";
 import type { BackendLogEntry } from "./BackendLogRepository";
 import { exportedSessionSchema } from "./exportedSession.schema";
 import { migrateSessionFile } from "./sessionMigrations";
 import type { StaticPath } from "./sessionPaths";
-import type { SessionEvent } from "../domain/session.types";
 
 /** Maximum accepted size for an imported `.wusool-session` file. */
 export const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
@@ -48,9 +48,7 @@ export function importSessionFile(rawText: string): ImportedSession {
   try {
     raw = JSON.parse(rawText);
   } catch {
-    throw new SessionImportError(
-      "The session file is not valid JSON.",
-    );
+    throw new SessionImportError("The session file is not valid JSON.");
   }
 
   const migrated = migrateSessionFile(readVersion(raw), raw);

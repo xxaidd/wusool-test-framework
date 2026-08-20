@@ -84,10 +84,7 @@ export function SessionViewer({
             </div>
 
             <div className="h-96 rounded-xl border border-border bg-surface-variant/40 p-2">
-              <SessionTimeline
-                events={session.events}
-                onSelect={setDetail}
-              />
+              <SessionTimeline events={session.events} onSelect={setDetail} />
             </div>
           </div>
         )}

@@ -146,7 +146,9 @@ export function CorrelatedLogs({
       </div>
 
       {renderedMode === "idle" && !isReadOnly && !event.correlationId && (
-        <p className="text-xs text-ink-soft">{t("session.logsNoCorrelation")}</p>
+        <p className="text-xs text-ink-soft">
+          {t("session.logsNoCorrelation")}
+        </p>
       )}
 
       {renderedMode === "idle" && isReadOnly && (
