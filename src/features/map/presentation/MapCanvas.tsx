@@ -1,8 +1,8 @@
 "use client";
 
 import L from "leaflet";
-import { Check, Pen, Play, Square, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, History, Pen, Play, Square, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   Marker,
@@ -14,8 +14,10 @@ import { actorWorkspaceKeyOf } from "@/features/actors/domain/actor.types";
 import type { RouteFollower } from "@/features/map/application/movement";
 import { createRouteFollower } from "@/features/map/application/movement";
 import type { LatLng } from "@/features/map/domain/map.types";
+import { buildStaticPaths } from "@/features/sessions";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Button } from "@/shared/components/Button";
+import { useSessionRecorder } from "@/shared/hooks/useSessionRecorder";
 import { useI18n } from "@/shared/i18n";
 import { actorColors, tokens } from "@/shared/lib/tokens";
 import { useActorStore } from "@/shared/store/actor.store";
@@ -57,8 +59,9 @@ export function MapCanvas() {
   const placeActor = useActorStore((s) => s.placeActor);
   const moveActor = useActorStore((s) => s.moveActor);
   const selectedActorId = useActorStore((s) => s.selectedActorId);
-  const addEvent = useSessionStore((s) => s.addEvent);
+  const recorder = useSessionRecorder();
   const envId = useEnvironmentStore((s) => s.env.id);
+  const sessionEvents = useSessionStore((s) => s.events);
 
   const mapRef = useRef<L.Map | null>(null);
   const [route, setRoute] = useState<Array<[number, number]>>([]);
@@ -66,9 +69,17 @@ export function MapCanvas() {
   const [following, setFollowing] = useState(false);
   const [speed, setSpeed] = useState(400);
   const [followActorId, setFollowActorId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const followerRef = useRef<RouteFollower | null>(null);
   const workspaceRef = useRef(workspace);
   workspaceRef.current = workspace;
+
+  // Recorded movement is replayed statically (FR-48): positions from session
+  // events are plotted as dashed lines per actor; no animated playback.
+  const staticPaths = useMemo(
+    () => buildStaticPaths(sessionEvents),
+    [sessionEvents],
+  );
 
   // Environment switches reset map-local work: routes, drawing, and automated
   // movement must never carry across environments (FR-36 / Task 1.3). Setting
@@ -79,23 +90,28 @@ export function MapCanvas() {
     setDrawing(false);
     setFollowing(false);
     setFollowActorId(null);
+    setShowHistory(false);
   }, [envId]);
 
   const selected = workspace.find(
     (a) => actorWorkspaceKeyOf(a) === selectedActorId,
   );
 
-  const onDrop = (actorKey: string, lat: number, lng: number) => {
+const onDrop = (actorKey: string, lat: number, lng: number) => {
     placeActor(actorKey, lat, lng);
-    addEvent({
+    recorder.record({
       source: SessionSource.System,
-      actorId: actorKey,
-      actorLabel:
-        workspace.find((a) => actorWorkspaceKeyOf(a) === actorKey)?.label ||
-        actorKey,
-      actionId: "map.place",
-      actionLabel: t("map.placeActor"),
-      categoryId: "location",
+      actor: {
+        id: actorKey,
+        label:
+          workspace.find((a) => actorWorkspaceKeyOf(a) === actorKey)?.label ||
+          actorKey,
+      },
+      action: {
+        id: "map.place",
+        label: t("map.placeActor"),
+        categoryId: "location",
+      },
       summary: `${t("map.placementDone")}`,
       status: "info",
       position: { lat, lng },
@@ -126,16 +142,20 @@ export function MapCanvas() {
       },
       onComplete: (pos) => {
         setFollowing(false);
-        addEvent({
+        recorder.record({
           source: SessionSource.Workflow,
-          actorId: followActorId,
-          actorLabel:
-            workspaceRef.current.find(
-              (a) => actorWorkspaceKeyOf(a) === followActorId,
-            )?.label || followActorId,
-          actionId: "map.follow",
-          actionLabel: t("map.followRoute"),
-          categoryId: "location",
+          actor: {
+            id: followActorId,
+            label:
+              workspaceRef.current.find(
+                (a) => actorWorkspaceKeyOf(a) === followActorId,
+              )?.label || followActorId,
+          },
+          action: {
+            id: "map.follow",
+            label: t("map.followRoute"),
+            categoryId: "location",
+          },
           summary: `${t("map.following")} (${route.length} pts)`,
           status: "success",
           position: { lat: pos.lat, lng: pos.lng },
@@ -149,7 +169,7 @@ export function MapCanvas() {
       followerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [following, followActorId, route, speed, addEvent, moveActor, t]);
+  }, [following, followActorId, route, speed, recorder, moveActor, t]);
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop target for placing actors on the map
@@ -209,6 +229,21 @@ export function MapCanvas() {
             pathOptions={{ color: tokens.tertiary, weight: 3 }}
           />
         )}
+        {showHistory &&
+          staticPaths.map((path) => (
+            <Polyline
+              key={path.actorId}
+              positions={path.points.map(
+                (p) => [p.lat, p.lng] as [number, number],
+              )}
+              pathOptions={{
+                color: tokens.secondary,
+                weight: 2,
+                opacity: 0.7,
+                dashArray: "6 6",
+              }}
+            />
+          ))}
       </MapContainer>
 
       {/* Toolbar */}
@@ -262,6 +297,23 @@ export function MapCanvas() {
                 {t("map.followRoute")}
               </>
             )}
+          </Button>
+        )}
+        {staticPaths.length > 0 && (
+          <Button
+            variant={showHistory ? "secondary" : "subtle"}
+            size="sm"
+            onClick={() => setShowHistory((v) => !v)}
+            title={
+              showHistory
+                ? t("map.hideHistoricalPaths")
+                : t("map.showHistoricalPaths")
+            }
+          >
+            <History size={15} />
+            {showHistory
+              ? t("map.hideHistoricalPaths")
+              : t("map.showHistoricalPaths")}
           </Button>
         )}
       </div>

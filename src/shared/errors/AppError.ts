@@ -52,3 +52,9 @@ export class SessionStorageError extends AppError {
     super("SESSION_STORAGE", message, opts);
   }
 }
+
+export class SessionImportError extends AppError {
+  constructor(message: string, opts?: { cause?: unknown }) {
+    super("SESSION_IMPORT", message, opts);
+  }
+}

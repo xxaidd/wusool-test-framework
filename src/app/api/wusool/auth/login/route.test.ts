@@ -100,6 +100,44 @@ describe("POST /api/wusool/auth/login", () => {
     expect(await getDevCredentialVault().resolve("7", "local")).toBeNull();
   });
 
+  it("fails loudly with nothing stored when the backend requires two-factor", async () => {
+    mockedServerLogin.mockResolvedValue({
+      accessToken: "",
+      refreshToken: undefined,
+      requiresTwoFactor: true,
+    });
+
+    const res = await POST(req(loginBody));
+    const json = (await res.json()) as {
+      ok: boolean;
+      error: { code: string; message: string };
+    };
+
+    expect(res.status).toBe(401);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe("AUTHENTICATION");
+    expect(json.error.message.toLowerCase()).toContain("two-factor");
+    expect(await getDevCredentialVault().resolve("7", "local")).toBeNull();
+  });
+
+  it("fails loudly with nothing stored when the backend returns no token", async () => {
+    mockedServerLogin.mockResolvedValue({
+      accessToken: "",
+      refreshToken: undefined,
+    });
+
+    const res = await POST(req(loginBody));
+    const json = (await res.json()) as {
+      ok: boolean;
+      error: { code: string };
+    };
+
+    expect(res.status).toBe(401);
+    expect(json.ok).toBe(false);
+    expect(json.error.code).toBe("AUTHENTICATION");
+    expect(await getDevCredentialVault().resolve("7", "local")).toBeNull();
+  });
+
   it("rejects malformed bodies", async () => {
     const res = await POST(req({ env: {}, actorId: "", password: "" }));
     expect(res.status).toBe(400);

@@ -15,7 +15,10 @@ import type {
 } from "@/features/actions/domain/action.types";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
-import { ValidationError } from "@/shared/errors";
+import { buildExecutionRecord } from "@/features/sessions/application/buildExecutionRecord";
+import type { SessionRecorder } from "@/features/sessions/application/SessionRecorder";
+import { SessionSource } from "@/features/sessions/domain/session.types";
+import { ValidationError, type FailureClassification } from "@/shared/errors";
 import type { CorrelationInfo } from "@/shared/lib/correlation";
 import { createId } from "@/shared/lib/ids";
 import type {
@@ -46,6 +49,8 @@ export interface ActionExecution {
   refreshed: boolean;
   /** Non-fatal message when a required state refresh failed. */
   refreshError?: string;
+  /** Distinguishes normal failed actions from infrastructure failures. */
+  classification?: FailureClassification;
 }
 
 export interface ExecuteActionInput {
@@ -63,6 +68,12 @@ export interface ExecuteActionInput {
   mode?: ExecutionMode;
   /** Best-effort hook to refresh supporting entity state before executing. */
   refresh?: (kinds: EntityKind[]) => Promise<void>;
+  /** Centralized session recorder; when provided the outcome is recorded. */
+  recorder?: SessionRecorder;
+  /** Localized human summary stored with the recorded event. */
+  summary?: string;
+  /** Localized action label stored with the recorded event. */
+  actionLabel?: string;
 }
 
 /**
@@ -71,6 +82,10 @@ export interface ExecuteActionInput {
  * required backend state, invokes the {@link ActionRepository}, and normalizes
  * a unique, evidence-safe, human-readable outcome. Manual and workflow
  * execution both go through this exact executor.
+ *
+ * When a {@link SessionRecorder} is provided, success and failure outcomes are
+ * recorded through it (needs-auth stays a UI prompt concern and is not
+ * recorded). The recorder must apply redaction before anything reaches storage.
  */
 export async function executeAction(
   input: ExecuteActionInput,
@@ -140,6 +155,7 @@ export async function executeAction(
     ...(refreshError != null ? { refreshError } : {}),
   };
 
+  const startedAt = new Date().toISOString();
   const result = await repo.execute({
     env,
     actor,
@@ -160,6 +176,7 @@ export async function executeAction(
       headers: {},
       body: JSON.stringify(result.data ?? null, null, 2),
     };
+    outcome.classification = { kind: "success" };
   } else if (result.status === "needs-auth") {
     outcome.needsAuth = true;
     outcome.correlation = result.correlation;
@@ -171,6 +188,7 @@ export async function executeAction(
       headers: {},
       body: "Authentication required",
     };
+    outcome.classification = { kind: "authorization", needsAuth: true };
   } else {
     outcome.statusCode = result.statusCode;
     outcome.error = result.message;
@@ -181,6 +199,7 @@ export async function executeAction(
       headers: {},
       body: result.message,
     };
+    outcome.classification = result.classification;
   }
 
   outcome.durationMs = Math.round(performance.now() - started);
@@ -191,5 +210,30 @@ export async function executeAction(
     ok: outcome.ok,
     needsAuth: outcome.needsAuth,
   });
+
+  if (input.recorder && input.summary != null && !outcome.needsAuth) {
+    input.recorder.record({
+      source: SessionSource.Manual,
+      actor: { id: actor.id, label: actor.label, type: actor.type },
+      action: {
+        id: action.metadata.id,
+        label: input.actionLabel ?? action.metadata.labelKey,
+        categoryId: action.metadata.category,
+      },
+      summary: input.summary,
+      status: outcome.ok ? "success" : "failure",
+      ...(outcome.error != null ? { error: outcome.error } : {}),
+      ...(outcome.position != null ? { position: outcome.position } : {}),
+      baseUrl: env.baseUrl,
+      execution: buildExecutionRecord({
+        envId: env.id,
+        actorId: actor.id,
+        actionId: action.metadata.id,
+        startedAt,
+        outcome,
+      }),
+    });
+  }
+
   return outcome;
 }

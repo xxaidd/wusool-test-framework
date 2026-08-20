@@ -44,7 +44,11 @@ export function AuthPromptModal({
       onAuthenticated(actor, email);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.unauthorized"));
+      const message = err instanceof Error ? err.message : "";
+      // The 2FA gap is surfaced server-side; render its friendly translation.
+      setError(
+        /two-factor/i.test(message) ? t("auth.twoFactorRequired") : message,
+      );
     } finally {
       setLoading(false);
     }

@@ -57,6 +57,21 @@ describe("endpointContract registry", () => {
     }
   });
 
+it("every verified action with a bearer-auth contract requires actor auth", () => {
+    // A mismatch here means the executor never attaches the actor token, so the
+    // backend 401s and the UI re-prompts in an endless credentials loop.
+    for (const action of actions) {
+      if (!action.metadata.verified) continue;
+      const contract = getVerifiedEndpointContract(action.metadata.contractRef);
+      if (contract?.auth === "bearer") {
+        expect(
+          action.metadata.requiresAuth,
+          `${action.metadata.id} contract is bearer-auth`,
+        ).toBe(true);
+      }
+    }
+  });
+
   it("all unverified catalog entries are Driver/Bus extension points", () => {
     const unverified = actions.filter((a) => !a.metadata.verified);
     expect(unverified.length).toBeGreaterThan(0);

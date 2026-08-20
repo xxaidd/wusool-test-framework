@@ -4,7 +4,11 @@ import {
   ActorType,
   actorWorkspaceKeyOf,
 } from "@/features/actors/domain/actor.types";
-import { useActorStore } from "@/shared/store/actor.store";
+import {
+  type ActorState,
+  mergeActorState,
+  useActorStore,
+} from "@/shared/store/actor.store";
 
 describe("useActorStore workspace keying", () => {
   beforeEach(() => {
@@ -97,5 +101,66 @@ describe("useActorStore workspace keying", () => {
 
     expect(useActorStore.getState().workspace).toEqual([driver]);
     expect(useActorStore.getState().selectedActorId).toBe("driver:7");
+  });
+});
+
+function currentState(): ActorState {
+  return {
+    workspace: [],
+    discovered: [],
+    selectedActorId: null,
+    search: "",
+    typeFilter: "all",
+    placed: [],
+    drawingRoute: false,
+    addToWorkspace: () => undefined,
+    removeFromWorkspace: () => undefined,
+    setDiscovered: () => undefined,
+    selectActor: () => undefined,
+    setSearch: () => undefined,
+    setTypeFilter: () => undefined,
+    placeActor: () => undefined,
+    moveActor: () => undefined,
+    updateActor: () => undefined,
+    setDrawingRoute: () => undefined,
+    clearWorkspace: () => undefined,
+    actorByKey: () => undefined,
+  };
+}
+
+describe("mergeActorState", () => {
+  it("resets every restored workspace actor's authenticated flag to false", () => {
+    const persisted = {
+      workspace: [
+        {
+          id: "u1",
+          type: ActorType.Passenger,
+          label: "Passenger",
+          sublabel: "u1@example.com",
+          authenticated: true,
+          source: ActorSource.Test,
+        },
+      ],
+      placed: [{ actorKey: "passenger:u1", lat: 1, lng: 2 }],
+      selectedActorId: "passenger:u1",
+    };
+
+    const merged = mergeActorState(persisted, currentState());
+
+    expect(merged.workspace).toHaveLength(1);
+    expect(merged.workspace[0]).toMatchObject({
+      id: "u1",
+      label: "Passenger",
+      authenticated: false,
+    });
+    expect(merged.placed).toEqual(persisted.placed);
+    expect(merged.selectedActorId).toBe("passenger:u1");
+  });
+
+  it("keeps current state defaults when nothing is persisted", () => {
+    const merged = mergeActorState(undefined, currentState());
+
+    expect(merged.workspace).toEqual([]);
+    expect(merged.search).toBe("");
   });
 });

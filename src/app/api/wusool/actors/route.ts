@@ -8,7 +8,7 @@ import { adminRequest } from "@/infrastructure/server/adminAuth";
 import { getDevCredentialVault } from "@/infrastructure/server/credentialVaultDev";
 import { resolveEnvironment } from "@/infrastructure/server/environmentResolver";
 import { serverRegister } from "@/infrastructure/server/wusoolServerClient";
-import { ValidationError } from "@/shared/errors";
+import { AuthenticationError, ValidationError } from "@/shared/errors";
 import { fail, ok } from "../helpers";
 import { createActorInputSchema, envInputSchema } from "../schemas";
 
@@ -37,6 +37,16 @@ export async function POST(request: Request): Promise<Response> {
         password,
         fullName: input.name,
       });
+      // Do not fabricate an authenticated actor when the backend returned no
+      // usable token (e.g. a 2FA-required response): fail loudly instead.
+      if (tokens.requiresTwoFactor) {
+        throw new AuthenticationError(
+          "Two-factor authentication is required but is not supported by the framework.",
+        );
+      }
+      if (!tokens.accessToken) {
+        throw new AuthenticationError("The backend returned no access token.");
+      }
       const id = userId || String(Date.now());
       await vault.setContext(id, env.id, {
         accessToken: tokens.accessToken,

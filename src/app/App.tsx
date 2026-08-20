@@ -11,6 +11,7 @@ import { AuthPromptModal } from "@/features/actors/presentation/AuthPromptModal"
 import { CreateActorModal } from "@/features/actors/presentation/CreateActorModal";
 import { EnvironmentModal } from "@/features/environments/presentation/EnvironmentModal";
 import { SessionPanel } from "@/features/sessions/presentation/SessionPanel";
+import { useSessionPersistence } from "@/shared/hooks/useSessionPersistence";
 import { useI18n } from "@/shared/i18n";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
@@ -31,6 +32,7 @@ const MapCanvas = dynamic(
 
 export function App() {
   const { t } = useI18n();
+  useSessionPersistence();
   const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const updateActor = useActorStore((s) => s.updateActor);
   const activePanel = useUIStore((s) => s.activePanel);
