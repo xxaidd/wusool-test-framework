@@ -39,6 +39,7 @@ export interface CreateActorInput {
   type: ActorType;
   name?: string;
   email?: string;
+  password?: string;
   plateNumber?: string;
   capacityNumber?: number;
   signal?: AbortSignal;

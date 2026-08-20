@@ -32,7 +32,7 @@ export function createServerActionRepository(
   return {
     async execute(input: ActionRequestInput): Promise<ActionResult> {
       const { env, actor, action, args, token, signal } = input;
-      const method = action.method;
+      const method = action.transport.method;
       const path = buildPath(action, args, actor);
       const query = buildQuery(action, args);
       const isBody = ["POST", "PUT", "PATCH"].includes(method);

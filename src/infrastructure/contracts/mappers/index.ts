@@ -5,5 +5,5 @@ export { shiftMapper } from "./shiftMapper";
 export { stopMapper } from "./stopMapper";
 export { tripMapper } from "./tripMapper";
 export type { MappedEntityOption } from "./types";
-export { fallbackLabel } from "./types";
+export { fallbackLabel, resolveLabel } from "./types";
 export { userMapper } from "./userMapper";

@@ -19,27 +19,28 @@ import {
   buildPath,
   buildQuery,
   getAction,
+  validateActionArgs,
   verifiedActionsForActor,
 } from "@/features/actions/application/actionCatalog";
 import {
-  type ActionOutcome,
-  runAction,
-} from "@/features/actions/application/runAction";
+  type ActionExecution,
+  executeAction,
+} from "@/features/actions/application/executeAction";
 import {
   type ActionCategory,
   type ActionDef,
   ActionMode,
-  type EntityKind,
+  EntityKind,
+  type ExecutionMode,
 } from "@/features/actions/domain/action.types";
 import { bffActionRepository } from "@/features/actions/infrastructure/actionRepository";
-import { loadEntity } from "@/features/actions/infrastructure/entityRepository";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
+import { actorWorkspaceKeyOf } from "@/features/actors/domain/actor.types";
 import { SessionSource } from "@/features/sessions/domain/session.types";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Input } from "@/shared/components/Input";
-import { SearchSelect } from "@/shared/components/SearchSelect";
 import { Select } from "@/shared/components/Select";
 import { Spinner } from "@/shared/components/Spinner";
 import { Textarea } from "@/shared/components/Textarea";
@@ -50,6 +51,7 @@ import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
 import { useUIStore } from "@/shared/store/ui.store";
+import { EntitySearchSelect } from "./EntitySearchSelect";
 
 function categoryIcon(c: ActionCategory): LucideIcon {
   switch (c) {
@@ -68,6 +70,14 @@ function categoryIcon(c: ActionCategory): LucideIcon {
   }
 }
 
+/** Map a field id to its i18n label key for validation summaries. */
+function fieldLabel(action: ActionDef, field: string): string {
+  return (
+    action.metadata.fields.find((f) => f.id === field)?.labelKey ??
+    `fields.${field}`
+  );
+}
+
 export function ActionPanel({
   onRequestAuth,
 }: {
@@ -77,7 +87,7 @@ export function ActionPanel({
   const env = useEnvironmentStore((s) => s.env);
   const health = useEnvironmentStore((s) => s.health);
   const selected = useActorStore((s) =>
-    s.workspace.find((a) => a.id === s.selectedActorId),
+    s.workspace.find((a) => actorWorkspaceKeyOf(a) === s.selectedActorId),
   );
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const recorder = useSessionRecorder();
@@ -87,8 +97,9 @@ export function ActionPanel({
   const [category, setCategory] = useState<ActionCategory | "all">("all");
   const [actionId, setActionId] = useState<string | null>(null);
   const [args, setArgs] = useState<Record<string, unknown>>({});
-  const [result, setResult] = useState<ActionOutcome | null>(null);
+  const [result, setResult] = useState<ActionExecution | null>(null);
   const [executing, setExecuting] = useState(false);
+  const [invalidTest, setInvalidTest] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -109,7 +120,7 @@ export function ActionPanel({
   const categories = useMemo(() => {
     if (!selected) return [];
     return verifiedActionsForActor(selected.type)
-      .map((a) => a.category)
+      .map((a) => a.metadata.category)
       .filter((c, i, arr) => arr.indexOf(c) === i);
   }, [selected]);
 
@@ -124,9 +135,9 @@ export function ActionPanel({
     if (!selected || !action) return null;
     const path = buildPath(action, args, selected);
     const query = buildQuery(action, args);
-    const isBody = ["POST", "PUT", "PATCH"].includes(action.method);
+    const isBody = ["POST", "PUT", "PATCH"].includes(action.transport.method);
     return {
-      method: action.method,
+      method: action.transport.method,
       path: `${path}${query ? `?${new URLSearchParams(query).toString()}` : ""}`,
       body: isBody
         ? JSON.stringify(buildBody(action, args, selected), null, 2)
@@ -134,45 +145,57 @@ export function ActionPanel({
     };
   }, [action, args, selected]);
 
+  // Client-side validation for inline feedback. Normal mode disables the
+  // action when obvious required inputs are missing (FR-18); advanced
+  // invalid-test mode deliberately allows invalid requests (FR-18, FR-50).
+  const validation = useMemo<ReturnType<typeof validateActionArgs>>(() => {
+    if (!action || invalidTest) return { ok: true, args };
+    return validateActionArgs(action, args);
+  }, [action, args, invalidTest]);
+
   const cancel = () => {
     abortRef.current?.abort();
   };
 
-  const execute = async () => {
+  const execute = async (option: "retry" | "fresh" = "fresh") => {
     if (!selected || !action) return;
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
+    if (option === "fresh") {
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+    }
     setExecuting(true);
     setResult(null);
     const pos =
       selected.lat != null && selected.lng != null
         ? { lat: selected.lat, lng: selected.lng }
         : undefined;
+    const mode: ExecutionMode = invalidTest ? "invalid" : "normal";
     const recordBase = {
       source: SessionSource.Manual,
       actor: { id: selected.id, label: selected.label, type: selected.type },
       action: {
-        id: action.id,
-        label: t(action.labelKey),
-        categoryId: action.category,
+        id: action.metadata.id,
+        label: t(action.metadata.labelKey),
+        categoryId: action.metadata.category,
       },
-      summary: t(action.summaryKey),
+      summary: t(action.metadata.summaryKey),
       position: pos,
       baseUrl: env.baseUrl,
     };
-    let outcome: ActionOutcome;
+    let execution: ActionExecution;
     try {
-      outcome = await runAction({
+      execution = await executeAction({
         env,
         actor: selected,
         action,
         args,
         position: pos,
         repo: bffActionRepository,
-        signal: abortRef.current.signal,
+        signal: abortRef.current?.signal,
+        mode,
         recorder,
-        summary: t(action.summaryKey),
-        actionLabel: t(action.labelKey),
+        summary: t(action.metadata.summaryKey),
+        actionLabel: t(action.metadata.labelKey),
       });
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -188,28 +211,31 @@ export function ActionPanel({
       }
       // Any unexpected infrastructure failure becomes a normal failed outcome
       // so the session still records it (FR-37) and the UI resets.
-      outcome = {
+      execution = {
+        executionId: `local_${Date.now()}`,
         ok: false,
         needsAuth: false,
         request: redactRequest({
-          method: action.method,
+          method: action.transport.method,
           path: buildPath(action, args, selected),
         }),
         durationMs: 0,
+        summary: { key: action.metadata.summaryKey },
+        refreshed: false,
         error: err instanceof Error ? err.message : "Unknown error",
       };
       recorder.record({
         ...recordBase,
         status: "failure",
-        error: outcome.error,
+        error: execution.error,
         classification: { kind: "infrastructure", subtype: "network" },
       });
     }
-    setResult(outcome);
+    setResult(execution);
     setExecuting(false);
 
-    if (outcome.needsAuth) {
-      onRequestAuth(selected, execute);
+    if (execution.needsAuth) {
+      onRequestAuth(selected, () => execute("retry"));
       return;
     }
   };
@@ -242,7 +268,7 @@ export function ActionPanel({
           )}
         </div>
         {/* Mode toggle */}
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <div className="inline-flex rounded-lg border border-border p-0.5">
             {[ActionMode.Simple, ActionMode.Advanced].map((m) => (
               <button
@@ -261,6 +287,17 @@ export function ActionPanel({
               </button>
             ))}
           </div>
+          {actionMode === ActionMode.Advanced && (
+            <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-ink-soft">
+              <input
+                type="checkbox"
+                checked={invalidTest}
+                onChange={(e) => setInvalidTest(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              {t("action.invalidTest")}
+            </label>
+          )}
         </div>
       </div>
 
@@ -314,16 +351,17 @@ export function ActionPanel({
             )}
             {actorActions.map((a) => (
               <button
-                key={a.id}
+                key={a.metadata.id}
                 type="button"
                 onClick={() => {
-                  setActionId(a.id);
+                  setActionId(a.metadata.id);
                   setArgs({});
                   setResult(null);
+                  setInvalidTest(false);
                 }}
                 className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm text-ink transition-colors hover:bg-surface-variant hover:pl-4"
               >
-                {t(a.labelKey)}
+                {t(a.metadata.labelKey)}
                 <ChevronRight
                   size={16}
                   className="text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
@@ -344,14 +382,20 @@ export function ActionPanel({
               <ArrowLeft size={14} />
               {t("action.categoryAll")}
             </button>
-            <h3 className="text-sm font-bold text-ink">{t(action.labelKey)}</h3>
+            <h3 className="text-sm font-bold text-ink">
+              {t(action.metadata.labelKey)}
+            </h3>
 
             {actionMode === ActionMode.Advanced && preview && (
               <div className="space-y-2 rounded-xl border border-border bg-surface-variant/60 p-3 font-mono text-xs">
                 <div>
                   <span className="text-ink-faint">{t("action.method")}: </span>
-                  <Badge tone={action.method === "GET" ? "info" : "primary"}>
-                    {action.method}
+                  <Badge
+                    tone={
+                      action.transport.method === "GET" ? "info" : "primary"
+                    }
+                  >
+                    {action.transport.method}
                   </Badge>
                 </div>
                 <div className="break-all text-ink">
@@ -368,20 +412,22 @@ export function ActionPanel({
               </div>
             )}
 
-            {action.fields.map((f) => {
+            {action.metadata.fields.map((f) => {
               if (f.kind === "entity") {
                 return (
-                  <SearchSelect
+                  <EntitySearchSelect
                     key={f.id}
-                    label={t(f.labelKey)}
-                    placeholder={t("action.selectEntity")}
-                    searchPlaceholder={t("action.searchEntity")}
-                    loadingLabel={t("action.searchLoading")}
-                    emptyLabel={t("entities.noResult")}
+                    env={env}
+                    kind={f.entity as EntityKind}
+                    actorId={selected?.id}
+                    enabled={Boolean(selected)}
+                    labelKey={f.labelKey}
                     value={args[f.id] as string}
-                    onSelect={(v) => setArg(f.id, v)}
-                    load={(q) =>
-                      loadEntity(env, f.entity as EntityKind, q, selected.id)
+                    onChange={(v) => setArg(f.id, v)}
+                    filterMeta={
+                      f.entity === EntityKind.Trip && args.routeId
+                        ? { routeId: String(args.routeId) }
+                        : undefined
                     }
                   />
                 );
@@ -423,7 +469,11 @@ export function ActionPanel({
             })}
 
             <div className="flex gap-2">
-              <Button full onClick={execute} disabled={executing || !health.ok}>
+              <Button
+                full
+                onClick={() => execute()}
+                disabled={executing || !health.ok || !validation.ok}
+              >
                 {executing ? (
                   <Spinner />
                 ) : (
@@ -439,6 +489,20 @@ export function ActionPanel({
                 </Button>
               )}
             </div>
+            {!validation.ok && (
+              <div className="rounded-xl border border-warning bg-warning-container/60 p-3">
+                <p className="text-xs font-semibold text-ink">
+                  {t("action.missingRequired")}
+                </p>
+                <ul className="mt-1.5 space-y-0.5">
+                  {Object.entries(validation.errors).map(([field, key]) => (
+                    <li key={field} className="text-xs text-ink-soft">
+                      • {t(fieldLabel(action, field))}: {t(key)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {!health.ok && !executing && (
               <p className="text-xs text-danger">
                 {t("app.connectionError")} · {t("action.backendUnavailable")}
@@ -473,13 +537,29 @@ export function ActionPanel({
                         {result.durationMs}ms
                       </span>
                     </div>
+                    {/* Human-readable result by default (FR-19) */}
                     <p className="mt-1 text-sm text-ink">
-                      {result.error || t(action.summaryKey)}
+                      {t(result.summary.key, result.summary.params)}
                     </p>
-                    {actionMode === ActionMode.Advanced && result.response && (
-                      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-2 font-mono text-xs text-ink">
-                        {result.response.body}
-                      </pre>
+                    {result.refreshError && (
+                      <p className="mt-1 text-xs text-warning">
+                        {t("action.refreshWarning")} {result.refreshError}
+                      </p>
+                    )}
+                    {actionMode === ActionMode.Advanced && (
+                      <div className="mt-2 space-y-1 font-mono text-xs text-ink-soft">
+                        <p>
+                          {t("action.executionId")}: {result.executionId}
+                        </p>
+                        {result.error && (
+                          <p className="text-danger">{result.error}</p>
+                        )}
+                        {result.response && (
+                          <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-2 text-ink">
+                            {result.response.body}
+                          </pre>
+                        )}
+                      </div>
                     )}
                   </>
                 )}

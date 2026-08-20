@@ -13,12 +13,16 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import type {
-  ActorRef,
-  ActorType as AT,
+import type { ActorWorkspaceGateway } from "@/features/actors/application/ActorWorkspaceGateway";
+import { AddActorToWorkspaceUseCase } from "@/features/actors/application/AddActorToWorkspaceUseCase";
+import { DiscoverActorsUseCase } from "@/features/actors/application/DiscoverActorsUseCase";
+import { SelectActorUseCase } from "@/features/actors/application/SelectActorUseCase";
+import {
+  type ActorRef,
+  ActorType,
+  type ActorType as AT,
+  actorWorkspaceKeyOf,
 } from "@/features/actors/domain/actor.types";
-import { ActorType } from "@/features/actors/domain/actor.types";
-import { discoverActors } from "@/features/actors/infrastructure/actorRepository";
 import { logout } from "@/features/actors/infrastructure/authService";
 import { isAdminAuthRequired } from "@/infrastructure/bff/client";
 import { Badge } from "@/shared/components/Badge";
@@ -61,18 +65,29 @@ export function ActorPanel({
   const env = useEnvironmentStore((s) => s.env);
   const workspace = useActorStore((s) => s.workspace);
   const discovered = useActorStore((s) => s.discovered);
-  const setDiscovered = useActorStore((s) => s.setDiscovered);
   const selectedActorId = useActorStore((s) => s.selectedActorId);
-  const selectActor = useActorStore((s) => s.selectActor);
-  const addToWorkspace = useActorStore((s) => s.addToWorkspace);
-  const removeFromWorkspace = useActorStore((s) => s.removeFromWorkspace);
-  const updateActor = useActorStore((s) => s.updateActor);
   const search = useActorStore((s) => s.search);
-  const setSearch = useActorStore((s) => s.setSearch);
   const typeFilter = useActorStore((s) => s.typeFilter);
+  const setSearch = useActorStore((s) => s.setSearch);
   const setTypeFilter = useActorStore((s) => s.setTypeFilter);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const clearAuth = useAuthStore((s) => s.clear);
+
+  // Initialize use cases with actual repository methods
+  const {
+    discoverActors,
+  } = require("@/features/actors/infrastructure/actorRepository");
+
+  const discoverActorsUseCase = new DiscoverActorsUseCase(discoverActors);
+  const workspaceGateway: ActorWorkspaceGateway = {
+    isInWorkspace: (key) =>
+      useActorStore.getState().actorByKey(key) !== undefined,
+    addToWorkspace: (actor) => useActorStore.getState().addToWorkspace(actor),
+    selectActor: (actorKey) => useActorStore.getState().selectActor(actorKey),
+  };
+  const addActorToWorkspaceUseCase = new AddActorToWorkspaceUseCase(
+    workspaceGateway,
+  );
+  const selectActorUseCase = new SelectActorUseCase(workspaceGateway);
 
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | undefined>();
@@ -85,8 +100,10 @@ export function ActorPanel({
       // Best-effort server-side clear; the UI is reset regardless so the
       // next action prompts for authentication again.
     }
-    clearAuth(a.id);
-    updateActor(a.id, { authenticated: false });
+    // Clear auth using store (keeping existing behavior for now)
+    useActorStore
+      .getState()
+      .updateActor(actorWorkspaceKeyOf(a), { authenticated: false });
   };
 
   const onDiscover = async () => {
@@ -98,9 +115,40 @@ export function ActorPanel({
         typeFilter === "all"
           ? [ActorType.Passenger, ActorType.Driver, ActorType.Bus]
           : [typeFilter];
-      const found = await discoverActors(env, types);
-      setDiscovered(found);
-      if (found.length === 0) setDiscoverError("No actors found");
+      const result = await discoverActorsUseCase.execute({
+        envId: env.id,
+        types,
+        // Note: AbortSignal not implemented in this simplified version
+      });
+
+      if (result.status === "success") {
+        // Convert SafeActor back to ActorRef for compatibility with existing store
+        // In a full implementation, the store would work with SafeActor
+        const actorRefs: ActorRef[] = result.actors.map((safeActor) => ({
+          id: safeActor.id,
+          type: safeActor.type,
+          label: safeActor.label,
+          sublabel: safeActor.sublabel,
+          authenticated: safeActor.authenticated,
+          source: safeActor.source,
+          email: safeActor.email ?? undefined,
+          lat: safeActor.lat ?? undefined,
+          lng: safeActor.lng ?? undefined,
+          // Note: raw field is omitted as per safe actor principles
+          // Keeping the source from the safeActor (which should be Existing for discovered actors)
+        }));
+
+        useActorStore.getState().setDiscovered(actorRefs);
+        if (actorRefs.length === 0) setDiscoverError("No actors found");
+      } else {
+        if (isAdminAuthRequired(result.error)) {
+          setAdminRequired(true);
+          setDiscoverError(t("actor.adminRequired"));
+        } else {
+          const msg = result.error?.message;
+          setDiscoverError(msg ? msg : t("common.networkError"));
+        }
+      }
     } catch (err) {
       if (isAdminAuthRequired(err)) {
         setAdminRequired(true);
@@ -186,7 +234,7 @@ export function ActorPanel({
           </div>
           {discovered.map((a) => (
             <div
-              key={a.id}
+              key={actorWorkspaceKeyOf(a)}
               className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-surface-variant"
             >
               <div className="flex min-w-0 items-center gap-2">
@@ -205,7 +253,7 @@ export function ActorPanel({
               <Button
                 variant="subtle"
                 size="sm"
-                onClick={() => addToWorkspace(a)}
+                onClick={() => addActorToWorkspaceUseCase.execute(a)}
               >
                 {t("actor.addToWorkspace")}
               </Button>
@@ -228,23 +276,26 @@ export function ActorPanel({
         )}
         {filteredWorkspace.map((a) => {
           const authed = isAuthenticated(a.id) || a.authenticated;
-          const selected = a.id === selectedActorId;
+          const aKey = actorWorkspaceKeyOf(a);
+          const selected = aKey === selectedActorId;
           return (
             // biome-ignore lint/a11y/useSemanticElements: a real <button> is invalid here — its descendants include interactive <button> controls (authenticate / sign-out / remove), which would break HTML parsing and cause hydration errors.
             <div
-              key={a.id}
+              key={aKey}
               role="button"
               tabIndex={0}
               draggable
               onDragStart={(e) => {
-                e.dataTransfer.setData("text/actor-id", a.id);
+                e.dataTransfer.setData("text/actor-key", aKey);
                 e.dataTransfer.effectAllowed = "move";
               }}
-              onClick={() => selectActor(selected ? null : a.id)}
+              onClick={() => {
+                selectActorUseCase.execute(selected ? null : aKey);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  selectActor(selected ? null : a.id);
+                  selectActorUseCase.execute(selected ? null : aKey);
                 }
               }}
               className={`group mx-2 my-1 flex cursor-grab items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
@@ -276,7 +327,10 @@ export function ActorPanel({
                     onClick={(e) => {
                       e.stopPropagation();
                       onRequestAuth(a, () =>
-                        updateActor(a.id, { authenticated: true }),
+                        // Update actor auth status through store
+                        useActorStore
+                          .getState()
+                          .updateActor(aKey, { authenticated: true }),
                       );
                     }}
                     className="rounded-md px-1.5 py-1 text-info transition-colors hover:bg-info-container"
@@ -307,7 +361,9 @@ export function ActorPanel({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    removeFromWorkspace(a.id);
+                    // Remove from workspace through store for now
+                    // TODO: Consider creating a RemoveActorFromWorkspaceUseCase
+                    useActorStore.getState().removeFromWorkspace(aKey);
                   }}
                   className="rounded-md px-1.5 py-1 text-danger transition-colors hover:bg-danger-container"
                   title={t("actor.remove")}

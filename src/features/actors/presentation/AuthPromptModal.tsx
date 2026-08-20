@@ -19,7 +19,7 @@ export function AuthPromptModal({
   open: boolean;
   actor: ActorRef | null;
   onClose: () => void;
-  onAuthenticated: (actorId: string, email: string) => void;
+  onAuthenticated: (actor: ActorRef, email: string) => void;
 }) {
   const { t } = useI18n();
   const env = useEnvironmentStore((s) => s.env);
@@ -41,7 +41,7 @@ export function AuthPromptModal({
     setLoading(true);
     try {
       await login(env, parsed.data, actor.type === ActorType.Driver, actor.id);
-      onAuthenticated(actor.id, email);
+      onAuthenticated(actor, email);
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "";

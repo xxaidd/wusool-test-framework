@@ -1,17 +1,21 @@
 import type { BookableTripDto } from "../schemas/entity";
-import { fallbackLabel, type MappedEntityOption } from "./types";
+import { type MappedEntityOption, resolveLabel } from "./types";
 
 /**
- * Map a `BookableTripDto` (flat `routeName`) to an entity option.
- * Label: `routeName · departureTime`, degrading to `Trip <id>`.
+ * Map a `BookableTripDto` to an entity option. The backend surfaces
+ * `routeName`/`startStopName` as either flat strings or localized objects;
+ * labels are resolved through {@link resolveLabel}. `meta.routeId` preserves
+ * the non-secret route association for client-side filtering.
  */
 export function tripMapper(input: BookableTripDto): MappedEntityOption {
   const id = String(input.id);
-  const routeName = input.routeName || fallbackLabel("Trip", id);
+  const routeName = resolveLabel(input.routeName, "Trip", id);
   const label = `${routeName} · ${input.departureTime ?? id}`;
   return {
     value: id,
     label,
+    meta:
+      input.routeId != null ? { routeId: String(input.routeId) } : undefined,
     raw: input as unknown as Record<string, unknown>,
   };
 }

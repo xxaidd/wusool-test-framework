@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EntityKind } from "@/features/actions/domain/action.types";
 import { ActorSource, ActorType } from "@/features/actors/domain/actor.types";
 import type { BackendEnvironment } from "@/features/environments/domain/environment.types";
 import { BackendEnvId } from "@/features/environments/domain/environment.types";
@@ -8,6 +9,7 @@ import { getActiveSessionRef } from "@/features/sessions/infrastructure/indexedD
 import { BffError, bffRequest } from "@/infrastructure/bff/client";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { entityScopeKey, useEntityStore } from "@/shared/store/entity.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
 import { switchEnvironment } from "@/shared/store/environmentSwitch";
 import { useSessionStore } from "@/shared/store/session.store";
@@ -43,7 +45,7 @@ function seedWorkspace() {
     authenticated: true,
     source: ActorSource.Existing,
   });
-  useActorStore.getState().selectActor("7");
+  useActorStore.getState().selectActor("passenger:7");
   useAuthStore.getState().setAuthenticated("7", "p7@example.com");
   useSessionStore.getState().setEnvId(BackendEnvId.Local);
   useSessionStore.getState().start();
@@ -79,6 +81,7 @@ describe("switchEnvironment", () => {
       drawingRoute: false,
     });
     useAuthStore.setState({ authenticated: {}, emails: {} });
+    useEntityStore.getState().clear();
     useSessionStore.setState({
       recording: false,
       paused: false,
@@ -145,6 +148,26 @@ describe("switchEnvironment", () => {
     // environment's session across environments.
     expect(session.sessionId).toBeUndefined();
     expect(getActiveSessionRef()).toBeNull();
+  });
+
+  it("clears the entity store so cached results never survive an environment switch", async () => {
+    useEntityStore
+      .getState()
+      .setBucket(entityScopeKey(EntityKind.Trip, BackendEnvId.Local, "7"), {
+        items: [{ value: "9", label: "stale trip" }],
+        status: "ready",
+      });
+    mockedBffRequest.mockImplementation(async (path: string) => {
+      if (path === "/api/wusool/health") return { ok: true, status: 200 };
+      if (path === "/api/wusool/auth/logout") return { cleared: true };
+      throw new Error(`Unexpected path ${path}`);
+    });
+
+    const result = await switchEnvironment(stagingEnv);
+
+    expect(result.ok).toBe(true);
+    // Buckets for every (env, actor, kind) scope are dropped.
+    expect(useEntityStore.getState().buckets).toEqual({});
   });
 
   it("keeps the environment when the backend is unreachable but valid", async () => {

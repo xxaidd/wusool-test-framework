@@ -28,9 +28,22 @@ export interface ActorRef {
 }
 
 export interface PlacedActor {
-  actorId: string;
+  /** Stable workspace key (see {@link actorWorkspaceKeyOf}). */
+  actorKey: string;
   lat: number;
   lng: number;
+}
+
+/** Stable workspace identity that disambiguates actors whose raw backend `id`
+ *  can collide across types (and, because environment switches clear the
+ *  workspace, across environments). Selection, placement, movement, and
+ *  duplicate detection are all keyed by this, never by the raw `id`. */
+export function actorWorkspaceKey(type: ActorType, id: string): string {
+  return `${type}:${id}`;
+}
+
+export function actorWorkspaceKeyOf(a: Pick<ActorRef, "type" | "id">): string {
+  return actorWorkspaceKey(a.type, a.id);
 }
 
 export interface CreateActorInput {

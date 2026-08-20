@@ -4,8 +4,9 @@ import {
   buildPath,
   buildQuery,
   getAction,
+  validateActionArgs,
 } from "@/features/actions/application/actionCatalog";
-import { runAction } from "@/features/actions/application/runAction";
+import { executeAction } from "@/features/actions/application/executeAction";
 import type { ActorRef } from "@/features/actors/domain/actor.types";
 import { resolveActorToken } from "@/infrastructure/server/actorAuth";
 import { getDevCredentialVault } from "@/infrastructure/server/credentialVaultDev";
@@ -28,14 +29,18 @@ const executeSchema = z.object({
   actionId: z.string().min(1),
   args: argsSchema,
   position: positionSchema.optional(),
+  /** Advanced invalid-test mode: bypasses normal per-action validation. */
+  mode: z.enum(["normal", "invalid"]).default("normal"),
 });
 
 /**
  * Execute a framework action on behalf of a browser actor. The action is
  * resolved from the catalog, the actor's token is resolved from the
  * server-side vault (silently refreshing it when expired), and the request is
- * executed with a fresh correlation id. `needs-auth` is decided here from the
- * vault without hitting the backend.
+ * executed through the shared {@link executeAction} executor with a fresh
+ * correlation id. `needs-auth` is decided here from the vault without hitting
+ * the backend. Every execution returns a unique execution id and sanitized
+ * evidence.
  */
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -45,10 +50,20 @@ export async function POST(request: Request): Promise<Response> {
     if (!action) {
       throw new ValidationError(`Unknown action "${body.actionId}".`);
     }
-    if (!action.verified) {
+    if (!action.metadata.verified) {
       throw new ValidationError(
         `Action "${body.actionId}" is not contract-verified and cannot be executed.`,
       );
+    }
+
+    // Validate per-action inputs before resolving auth/vault so invalid inputs
+    // are rejected regardless of the actor's authentication state. Advanced
+    // invalid-test mode deliberately bypasses this (FR-18).
+    if (body.mode !== "invalid") {
+      const validation = validateActionArgs(action, body.args);
+      if (!validation.ok) {
+        throw new ValidationError("action.validationFailed");
+      }
     }
 
     const actor: ActorRef = {
@@ -60,14 +75,14 @@ export async function POST(request: Request): Promise<Response> {
     const vault = getDevCredentialVault();
 
     let token: string | undefined;
-    if (action.requiresAuth) {
+    if (action.metadata.requiresAuth) {
       token = (await resolveActorToken(vault, env, actor.id)) ?? undefined;
     }
 
     const repo = createServerActionRepository(correlationId);
 
-    if (action.requiresAuth && !token) {
-      const method = action.method;
+    if (action.metadata.requiresAuth && !token) {
+      const method = action.transport.method;
       const path = buildPath(action, body.args, actor);
       const query = buildQuery(action, body.args);
       const isBody = ["POST", "PUT", "PATCH"].includes(method);
@@ -85,13 +100,15 @@ export async function POST(request: Request): Promise<Response> {
         statusCode: 401,
         error: "Authentication required",
         correlation: { correlationId },
+        executionId: createId("exec"),
         request: requestEvidence,
         durationMs: 0,
         position: body.position,
+        summary: { key: "action.authRequired" },
       });
     }
 
-    const outcome = await runAction({
+    const execution = await executeAction({
       env,
       actor,
       action,
@@ -99,19 +116,25 @@ export async function POST(request: Request): Promise<Response> {
       position: body.position,
       token,
       repo,
+      mode: body.mode,
     });
 
     return ok({
-      ok: outcome.ok,
-      needsAuth: outcome.needsAuth,
-      statusCode: outcome.statusCode,
-      data: outcome.data,
-      error: outcome.error,
-      correlation: outcome.correlation,
-      request: outcome.request,
-      response: outcome.response,
-      durationMs: outcome.durationMs,
-      position: outcome.position,
+      ok: execution.ok,
+      needsAuth: execution.needsAuth,
+      statusCode: execution.statusCode,
+      data: execution.data,
+      error: execution.error,
+      correlation: execution.correlation,
+      executionId: execution.executionId,
+      request: execution.request,
+      response: execution.response,
+      durationMs: execution.durationMs,
+      position: execution.position,
+      refreshed: execution.refreshed,
+      refreshError: execution.refreshError,
+      classification: execution.classification,
+      summary: execution.summary,
     });
   } catch (err) {
     return fail(err);

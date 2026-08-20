@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "./Spinner";
 
 export interface SearchOption {
@@ -16,11 +16,22 @@ interface Props {
   searchPlaceholder?: string;
   loadingLabel?: string;
   emptyLabel?: string;
+  errorLabel?: string;
+  loadMoreLabel?: string;
   onSelect: (value: string) => void;
-  /** required: return options for the given query */
-  load: (query: string) => Promise<SearchOption[]>;
+  /** Backing options fetched into a store; filtered client-side by query. */
+  options: SearchOption[];
+  loading?: boolean;
+  error?: string;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
+/**
+ * Data-driven search selector. The caller supplies a store-backed set of
+ * {@link options}; typing filters them **client-side** — no per-keystroke
+ * network call. Optionally surfaces a load-more affordance for pagination.
+ */
 export function SearchSelect({
   label,
   value,
@@ -28,37 +39,34 @@ export function SearchSelect({
   searchPlaceholder = "Search…",
   loadingLabel = "Loading…",
   emptyLabel = "No results",
+  errorLabel = "Search failed",
+  loadMoreLabel = "Load more",
   onSelect,
-  load,
+  options,
+  loading = false,
+  error,
+  hasMore = false,
+  onLoadMore,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [options, setOptions] = useState<SearchOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedLabel, setSelectedLabel] = useState<string | undefined>(
-    value ? "…" : undefined,
-  );
   const ref = useRef<HTMLDivElement>(null);
 
-  const safeLoad = useCallback(
-    async (q: string) => {
-      setLoading(true);
-      try {
-        const opts = await load(q);
-        setOptions(opts);
-        return opts;
-      } catch {
-        setOptions([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [load],
+  const selectedLabel = useMemo(
+    () => options.find((o) => o.value === value)?.label,
+    [options, value],
   );
 
-  useEffect(() => {
-    if (open) safeLoad("");
-  }, [open, safeLoad]);
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
+    );
+  }, [options, query]);
+
+  const showLoading = loading && matches.length === 0;
 
   useEffect(() => {
     const handler = (ev: MouseEvent) => {
@@ -85,7 +93,7 @@ export function SearchSelect({
         className="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 text-left text-sm text-ink outline-none transition-colors focus:border-primary"
       >
         <span className={value ? "" : "text-ink-faint"}>
-          {selectedLabel && value ? selectedLabel : placeholder}
+          {selectedLabel ? selectedLabel : placeholder}
         </span>
         <span className="text-ink-soft">
           <ChevronDown size={15} />
@@ -94,35 +102,39 @@ export function SearchSelect({
 
       {open && (
         <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
-          <div className="border-b border-border p-2">
+          <div className="relative border-b border-border p-2">
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint"
+            />
             <input
               value={query}
-              onChange={async (e) => {
-                const q = e.target.value;
-                setQuery(q);
-                safeLoad(q);
-              }}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 w-full rounded-md border border-border bg-surface-variant px-3 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-primary"
+              className="h-9 w-full rounded-md border border-border bg-surface-variant pl-8 pr-3 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-primary"
             />
           </div>
           <div className="max-h-56 overflow-y-auto scrollbar-thin">
-            {loading && (
+            {showLoading && (
               <div className="flex items-center gap-2 px-3 py-2 text-sm text-ink-soft">
                 <Spinner /> {loadingLabel}
               </div>
             )}
-            {!loading && options.length === 0 && (
+            {!showLoading && error && (
+              <div className="px-3 py-2 text-sm text-ink-faint">
+                {errorLabel}
+              </div>
+            )}
+            {!showLoading && !error && matches.length === 0 && (
               <div className="px-3 py-2 text-sm text-ink-faint">
                 {emptyLabel}
               </div>
             )}
-            {options.map((o) => (
+            {matches.map((o) => (
               <button
                 key={o.value}
                 type="button"
                 onClick={() => {
-                  setSelectedLabel(o.label);
                   onSelect(o.value);
                   setOpen(false);
                 }}
@@ -131,6 +143,16 @@ export function SearchSelect({
                 {o.label}
               </button>
             ))}
+            {hasMore && (
+              <button
+                type="button"
+                onClick={onLoadMore}
+                className="flex w-full items-center justify-center gap-2 border-t border-border px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary-container"
+              >
+                {loading ? <Spinner /> : null}
+                {loadMoreLabel}
+              </button>
+            )}
           </div>
         </div>
       )}

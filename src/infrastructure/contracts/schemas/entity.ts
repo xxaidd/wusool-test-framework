@@ -2,6 +2,40 @@ import { z } from "zod";
 import { StopTypeSchema, UserTripStatusSchema } from "./enums";
 
 /**
+ * A display name surfaced by the backend as either a flat string or a
+ * localized `{ en, ar }` object. Labels are resolved through the mappers, never
+ * guessed.
+ */
+export const NameScalarSchema = z.union([
+  z.string(),
+  z
+    .object({ en: z.string().optional(), ar: z.string().optional() })
+    .nullable()
+    .optional(),
+]);
+export type NameScalar = z.infer<typeof NameScalarSchema>;
+
+/**
+ * The shared paged envelope returned by list endpoints:
+ * `ApiResponse<PagedResponse<T>>` unwrapped by the server client to
+ * `{ items, pagination }`.
+ */
+export const PagedEnvelopeSchema = z.object({
+  items: z.array(z.unknown()),
+  pagination: z
+    .object({
+      currentPage: z.number().optional(),
+      pageSize: z.number().optional(),
+      totalCount: z.number().optional(),
+      totalPages: z.number().optional(),
+      hasNextPage: z.boolean().optional(),
+      hasPreviousPage: z.boolean().optional(),
+    })
+    .optional(),
+});
+export type PagedEnvelope = z.infer<typeof PagedEnvelopeSchema>;
+
+/**
  * `StopDto` — `GET /api/v1/stops` item.
  * `name` is a **flat string**, NOT a localized `{ en, ar }` object.
  */
@@ -57,9 +91,9 @@ export type RouteResponse = z.infer<typeof RouteResponseSchema>;
 export const BookableTripDtoSchema = z.object({
   id: z.union([z.string(), z.number()]),
   routeId: z.union([z.string(), z.number()]).optional().nullable(),
-  routeName: z.string().optional().nullable(),
-  startStopName: z.string().optional().nullable(),
-  endStopName: z.string().optional().nullable(),
+  routeName: NameScalarSchema,
+  startStopName: NameScalarSchema,
+  endStopName: NameScalarSchema,
   departureTime: z.string().optional().nullable(),
   estimatedArrival: z.string().optional().nullable(),
   capacity: z.number().int().optional().nullable(),

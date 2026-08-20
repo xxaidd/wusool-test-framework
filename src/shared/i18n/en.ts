@@ -129,6 +129,22 @@ export const en = {
     general: "General",
     searchLoading: "Loading options…",
     none: "(none)",
+    invalidTest: "Allow invalid request (test mode)",
+    missingRequired: "Complete the required fields to execute.",
+    executionId: "Execution",
+    refreshWarning: "Could not refresh required backend state.",
+    validationFailed: "The submitted inputs are invalid for this action.",
+  },
+  result: {
+    actionFailed: "Action failed for {actor}.",
+    passenger: {
+      reserved: "{actor} booked Trip #{trip}.",
+      cancelled: "{actor} cancelled booking #{booking}.",
+      listed: "{actor} listed their bookings.",
+      discovered: "{actor} discovered bookable trips.",
+      hailed: "{actor} hailed Trip #{trip}.",
+      rated: "{actor} rated the trip.",
+    },
   },
   categories: {
     trip: "Trip",
@@ -160,6 +176,8 @@ export const en = {
     location: "Location description",
     shift: "Shift",
     id: "ID",
+    required: "This field is required.",
+    invalid: "This value is not valid.",
   },
   actions: {
     passenger: {
@@ -351,6 +369,9 @@ export const en = {
     selectRoute: "Select route",
     selectStop: "Select stop",
     noResult: "No results",
+    searchError: "Couldn't load options",
+    loadMore: "Load more",
+    needsAuth: "Authenticate this actor first.",
   },
   common: {
     cancel: "Cancel",

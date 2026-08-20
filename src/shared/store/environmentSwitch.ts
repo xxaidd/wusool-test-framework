@@ -3,6 +3,7 @@ import type { BackendEnvironment } from "@/features/environments/domain/environm
 import { BffError, bffRequest, envRef } from "@/infrastructure/bff/client";
 import { useActorStore } from "@/shared/store/actor.store";
 import { useAuthStore } from "@/shared/store/auth.store";
+import { useEntityStore } from "@/shared/store/entity.store";
 import { useEnvironmentStore } from "@/shared/store/environment.store";
 import { useSessionStore } from "@/shared/store/session.store";
 
@@ -58,6 +59,7 @@ export async function switchEnvironment(
 
   useAuthStore.getState().clearAll();
   useActorStore.getState().clearWorkspace();
+  useEntityStore.getState().clear();
   useSessionStore.getState().finalizeForEnvironmentSwitch({
     oldLabel: current.label,
     newLabel: target.label,
