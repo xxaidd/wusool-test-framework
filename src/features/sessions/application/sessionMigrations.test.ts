@@ -20,9 +20,9 @@ describe("SESSION_MIGRATIONS", () => {
         SESSION_MIGRATIONS[i - 1].from + 1,
       );
     }
-    expect(
-      SESSION_MIGRATIONS[SESSION_MIGRATIONS.length - 1].from + 1,
-    ).toBe(SESSION_FORMAT_VERSION);
+    expect(SESSION_MIGRATIONS[SESSION_MIGRATIONS.length - 1].from + 1).toBe(
+      SESSION_FORMAT_VERSION,
+    );
   });
 });
 
