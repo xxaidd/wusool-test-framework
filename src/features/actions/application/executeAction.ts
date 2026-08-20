@@ -18,7 +18,7 @@ import type { BackendEnvironment } from "@/features/environments/domain/environm
 import { buildExecutionRecord } from "@/features/sessions/application/buildExecutionRecord";
 import type { SessionRecorder } from "@/features/sessions/application/SessionRecorder";
 import { SessionSource } from "@/features/sessions/domain/session.types";
-import { ValidationError, type FailureClassification } from "@/shared/errors";
+import { type FailureClassification, ValidationError } from "@/shared/errors";
 import type { CorrelationInfo } from "@/shared/lib/correlation";
 import { createId } from "@/shared/lib/ids";
 import type {

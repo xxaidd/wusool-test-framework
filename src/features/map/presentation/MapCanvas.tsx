@@ -97,7 +97,7 @@ export function MapCanvas() {
     (a) => actorWorkspaceKeyOf(a) === selectedActorId,
   );
 
-const onDrop = (actorKey: string, lat: number, lng: number) => {
+  const onDrop = (actorKey: string, lat: number, lng: number) => {
     placeActor(actorKey, lat, lng);
     recorder.record({
       source: SessionSource.System,

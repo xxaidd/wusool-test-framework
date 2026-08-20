@@ -170,7 +170,7 @@ export function ActionPanel({
       selected.lat != null && selected.lng != null
         ? { lat: selected.lat, lng: selected.lng }
         : undefined;
-const mode: ExecutionMode = invalidTest ? "invalid" : "normal";
+    const mode: ExecutionMode = invalidTest ? "invalid" : "normal";
     const recordBase = {
       source: SessionSource.Manual,
       actor: { id: selected.id, label: selected.label, type: selected.type },

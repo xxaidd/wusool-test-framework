@@ -57,7 +57,7 @@ describe("endpointContract registry", () => {
     }
   });
 
-it("every verified action with a bearer-auth contract requires actor auth", () => {
+  it("every verified action with a bearer-auth contract requires actor auth", () => {
     // A mismatch here means the executor never attaches the actor token, so the
     // backend 401s and the UI re-prompts in an endless credentials loop.
     for (const action of actions) {
