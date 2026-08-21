@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 
 interface MapDropZoneProps {
-  mapRef: React.RefObject<{ mouseEventToLatLng: (e: MouseEvent) => { lat: number; lng: number } } | null>;
+  mapRef: React.RefObject<{
+    mouseEventToLatLng: (e: MouseEvent) => { lat: number; lng: number };
+  } | null>;
   onDrop: (actorId: string, lat: number, lng: number) => void;
   children: React.ReactNode;
 }
@@ -32,6 +34,7 @@ export function MapDropZone({ mapRef, onDrop, children }: MapDropZoneProps) {
   );
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop target for placing actors on the map
     <div
       className="relative isolate h-full w-full"
       onDragOver={handleDragOver}

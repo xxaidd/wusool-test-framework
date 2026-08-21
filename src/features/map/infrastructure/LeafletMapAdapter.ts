@@ -6,7 +6,7 @@ import type {
   MapUnsubscribe,
   MapViewport,
 } from "../application/MapAdapter";
-import type { LatLng, MovementRoute } from "../domain/map.types";
+import type { MovementRoute } from "../domain/map.types";
 
 /**
  * Concrete Leaflet implementation of the MapAdapter port.
@@ -81,10 +81,7 @@ export class LeafletMapAdapter implements MapAdapter {
   }
 
   setViewport(viewport: MapViewport) {
-    this.map?.flyTo(
-      [viewport.center.lat, viewport.center.lng],
-      viewport.zoom,
-    );
+    this.map?.flyTo([viewport.center.lat, viewport.center.lng], viewport.zoom);
   }
 
   subscribe(handler: (interaction: MapInteraction) => void): MapUnsubscribe {

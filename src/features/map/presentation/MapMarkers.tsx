@@ -2,8 +2,10 @@
 
 import L from "leaflet";
 import { Marker } from "react-leaflet";
-import type { ActorRef } from "@/features/actors/domain/actor.types";
-import type { PlacedActor } from "@/features/actors/domain/actor.types";
+import type {
+  ActorRef,
+  PlacedActor,
+} from "@/features/actors/domain/actor.types";
 import { actorColors, tokens } from "@/shared/lib/tokens";
 
 const ICONS: Record<string, string> = {

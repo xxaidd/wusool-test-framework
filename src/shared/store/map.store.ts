@@ -48,11 +48,7 @@ export const useMapStore = create<MapState>()(
       addRoutePoint: (point) =>
         set((s) => {
           const last = s.route[s.route.length - 1];
-          if (
-            last &&
-            last.lat === point.lat &&
-            last.lng === point.lng
-          ) {
+          if (last && last.lat === point.lat && last.lng === point.lng) {
             return s;
           }
           return { route: [...s.route, point] };
@@ -65,26 +61,22 @@ export const useMapStore = create<MapState>()(
 
       clearRoute: () => set({ route: [] }),
 
-      startDrawing: () =>
-        set({ drawing: true, route: [], following: false }),
+      startDrawing: () => set({ drawing: true, route: [], following: false }),
 
       finishDrawing: () => set({ drawing: false }),
 
-      cancelDrawing: () =>
-        set({ drawing: false, route: [] }),
+      cancelDrawing: () => set({ drawing: false, route: [] }),
 
       startFollowing: (actorId) =>
         set({ following: true, followActorId: actorId }),
 
-      stopFollowing: () =>
-        set({ following: false, followActorId: null }),
+      stopFollowing: () => set({ following: false, followActorId: null }),
 
       setSpeed: (speed) => set({ speed }),
 
       toggleHistory: () => set((s) => ({ showHistory: !s.showHistory })),
 
-      setViewport: (center, zoom) =>
-        set({ viewport: { center, zoom } }),
+      setViewport: (center, zoom) => set({ viewport: { center, zoom } }),
 
       resetForEnvironment: () =>
         set({

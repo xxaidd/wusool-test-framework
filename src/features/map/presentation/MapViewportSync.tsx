@@ -14,11 +14,9 @@ export function MapViewportSync() {
   const viewport = useMapStore((s) => s.viewport);
 
   useEffect(() => {
-    map.flyTo(
-      [viewport.center.lat, viewport.center.lng],
-      viewport.zoom,
-      { animate: false },
-    );
+    map.flyTo([viewport.center.lat, viewport.center.lng], viewport.zoom, {
+      animate: false,
+    });
   }, [map, viewport]);
 
   return null;

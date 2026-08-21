@@ -122,9 +122,7 @@ describe("useMapStore", () => {
 
   describe("viewport", () => {
     it("sets viewport", () => {
-      useMapStore
-        .getState()
-        .setViewport({ lat: 40.7128, lng: -74.006 }, 15);
+      useMapStore.getState().setViewport({ lat: 40.7128, lng: -74.006 }, 15);
       expect(useMapStore.getState().viewport).toEqual({
         center: { lat: 40.7128, lng: -74.006 },
         zoom: 15,

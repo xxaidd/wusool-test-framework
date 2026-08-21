@@ -1,6 +1,6 @@
 "use client";
 
-import L from "leaflet";
+import type L from "leaflet";
 import { Play } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, Polyline, TileLayer, useMap } from "react-leaflet";
@@ -133,7 +133,16 @@ export function MapCanvas() {
       followerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [following, followActorId, route, speed, recorder, moveActor, t]);
+  }, [
+    following,
+    followActorId,
+    route,
+    speed,
+    recorder,
+    moveActor,
+    t,
+    stopFollowing,
+  ]);
 
   return (
     <MapDropZone mapRef={mapRef} onDrop={onDrop}>
