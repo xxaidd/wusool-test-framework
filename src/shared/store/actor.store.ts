@@ -16,7 +16,6 @@ interface ActorState {
   search: string;
   typeFilter: ActorType | "all";
   placed: PlacedActor[];
-  drawingRoute: boolean;
 
   addToWorkspace: (actor: ActorRef) => void;
   removeFromWorkspace: (id: string) => void;
@@ -27,7 +26,6 @@ interface ActorState {
   placeActor: (actorId: string, lat: number, lng: number) => void;
   moveActor: (actorId: string, lat: number, lng: number) => void;
   updateActor: (actorId: string, patch: Partial<ActorRef>) => void;
-  setDrawingRoute: (v: boolean) => void;
   clearWorkspace: () => void;
   actorById: (id: string) => ActorRef | undefined;
 }
@@ -43,7 +41,6 @@ export const useActorStore = create<ActorState>()(
       search: "",
       typeFilter: "all",
       placed: [],
-      drawingRoute: false,
 
       addToWorkspace: (actor) => {
         if (get().workspace.some((a) => a.id === actor.id)) return;
@@ -92,8 +89,6 @@ export const useActorStore = create<ActorState>()(
           ),
         })),
 
-      setDrawingRoute: (drawingRoute) => set({ drawingRoute }),
-
       clearWorkspace: () =>
         set({
           workspace: [],
@@ -102,7 +97,6 @@ export const useActorStore = create<ActorState>()(
           discovered: [],
           search: "",
           typeFilter: "all",
-          drawingRoute: false,
         }),
 
       actorById: (id) => get().workspace.find((a) => a.id === id),

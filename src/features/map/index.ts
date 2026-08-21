@@ -16,3 +16,4 @@ export {
   stepAlongRoute,
 } from "./application/movement";
 export * from "./domain/map.types";
+export type { LeafletMapAdapter } from "./infrastructure/LeafletMapAdapter";

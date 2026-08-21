@@ -11,7 +11,6 @@ function currentState(): ActorState {
     search: "",
     typeFilter: "all",
     placed: [],
-    drawingRoute: false,
     addToWorkspace: () => undefined,
     removeFromWorkspace: () => undefined,
     setDiscovered: () => undefined,
@@ -21,7 +20,6 @@ function currentState(): ActorState {
     placeActor: () => undefined,
     moveActor: () => undefined,
     updateActor: () => undefined,
-    setDrawingRoute: () => undefined,
     clearWorkspace: () => undefined,
     actorById: () => undefined,
   };

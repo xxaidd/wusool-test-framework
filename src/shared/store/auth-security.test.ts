@@ -29,7 +29,6 @@ describe("auth security surface", () => {
       search: "",
       typeFilter: "all",
       placed: [],
-      drawingRoute: false,
     });
     useAuthStore.setState({ authenticated: {}, emails: {} });
   });

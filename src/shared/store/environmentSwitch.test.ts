@@ -76,7 +76,6 @@ describe("switchEnvironment", () => {
       search: "",
       typeFilter: "all",
       placed: [],
-      drawingRoute: false,
     });
     useAuthStore.setState({ authenticated: {}, emails: {} });
     useSessionStore.setState({
