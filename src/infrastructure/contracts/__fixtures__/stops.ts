@@ -35,3 +35,24 @@ export const stopWithoutNameFixture: StopDto = {
   created: null,
   lastModified: null,
 };
+
+/**
+ * Live-style stop whose `stopType` is a localized display string
+ * (the real backend returns `"موقف حافلات"` for bus stops).
+ * Must parse even though it is not a `StopType` enum value.
+ */
+export const stopWithLocalizedTypeFixture: StopDto = {
+  id: 303,
+  name: "King Saud Rd",
+  description: null,
+  stopType: "موقف حافلات",
+  longitude: 46.7,
+  latitude: 24.7,
+  isActive: true,
+  capacity: null,
+  hasShelter: null,
+  hasBench: null,
+  wheelchairAccessible: null,
+  created: null,
+  lastModified: null,
+};

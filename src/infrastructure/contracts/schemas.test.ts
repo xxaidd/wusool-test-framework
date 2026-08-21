@@ -27,7 +27,11 @@ import {
   routeFixture,
   routeWithShortNameOnlyFixture,
 } from "./__fixtures__/routes";
-import { stopFixture, stopWithoutNameFixture } from "./__fixtures__/stops";
+import {
+  stopFixture,
+  stopWithLocalizedTypeFixture,
+  stopWithoutNameFixture,
+} from "./__fixtures__/stops";
 import { tripFixture, tripWithoutDepartureFixture } from "./__fixtures__/trips";
 import { userFixture, userWithoutNamesFixture } from "./__fixtures__/users";
 import {
@@ -63,6 +67,7 @@ describe("schema parsing — valid fixtures", () => {
   it.each([
     [stopFixture, StopDtoSchema],
     [stopWithoutNameFixture, StopDtoSchema],
+    [stopWithLocalizedTypeFixture, StopDtoSchema],
     [routeFixture, RouteResponseSchema],
     [routeWithShortNameOnlyFixture, RouteResponseSchema],
     [tripFixture, BookableTripDtoSchema],

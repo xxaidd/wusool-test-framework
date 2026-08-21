@@ -8,7 +8,11 @@ import {
   routeFixture,
   routeWithShortNameOnlyFixture,
 } from "../__fixtures__/routes";
-import { stopFixture, stopWithoutNameFixture } from "../__fixtures__/stops";
+import {
+  stopFixture,
+  stopWithLocalizedTypeFixture,
+  stopWithoutNameFixture,
+} from "../__fixtures__/stops";
 import {
   tripFixture,
   tripWithoutDepartureFixture,
@@ -31,6 +35,13 @@ describe("stopMapper", () => {
 
   it("degrades to `Stop <id>` when the name is missing", () => {
     expect(stopMapper(stopWithoutNameFixture).label).toBe("Stop 202");
+  });
+
+  it("maps a live-style stop with a localized stopType string", () => {
+    expect(stopMapper(stopWithLocalizedTypeFixture)).toMatchObject({
+      value: "303",
+      label: "King Saud Rd",
+    });
   });
 });
 

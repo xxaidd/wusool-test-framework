@@ -300,22 +300,22 @@
   - Verification: unit/component tests and E2E discovery/add flow.
   - Potential pitfalls: current actor IDs can collide across types/environments; use a typed stable workspace actor key.
 
-  ### Task 2.2 — Implement contract-backed supporting-entity search
+    ### Task 2.2 — Implement contract-backed supporting-entity search
 
-  - Goal: provide searchable, paginated backend selectors for trips and stops needed by Passenger actions.
-  - Why: FR-07 and FR-32.
-  - Scope: stop and trip selectors for passenger discovery/reserve/cancel; later entity kinds follow the same port.
-  - Relevant code/files: actions entity repository, shared search selector, application entity-query use case, cache policy.
-  - Implementation approach: debounce input; cancel superseded requests; query the BFF; validate/map backend DTOs to safe EntityOption models; keep a short
-    environment-and-actor-scoped cache only for responsiveness; fetch fresh state when executing an operation.
+    - Goal: provide searchable, paginated backend selectors for trips and stops needed by Passenger actions.
+    - Why: FR-07 and FR-32.
+    - Scope: stop and trip selectors for passenger discovery/reserve/cancel; later entity kinds follow the same port.
+    - Relevant code/files: actions entity repository, shared search selector, application entity-query use case, cache policy.
+    - Implementation approach: debounce input; cancel superseded requests; query the BFF; validate/map backend DTOs to safe EntityOption models; keep a short
+      environment-and-actor-scoped cache only for responsiveness; fetch fresh state when executing an operation.
 
-  - Dependencies: Tasks 1.1 and 2.1; entity API contract.
-  - Testing: debounce/cancellation tests, query encoding, pagination, stale environment response rejection, malformed DTO, unauthorized, and empty-result
-    cases.
+    - Dependencies: Tasks 1.1 and 2.1; entity API contract.
+    - Testing: debounce/cancellation tests, query encoding, pagination, stale environment response rejection, malformed DTO, unauthorized, and empty-result
+      cases.
 
-  - Acceptance criteria: the tester selects a specific real entity; results never cross actor/environment contexts; no “load everything” request is needed.
-  - Verification: component tests and API integration tests.
-  - Potential pitfalls: booking lists are actor-authenticated; do not mistakenly query them with the framework/admin identity.
+    - Acceptance criteria: the tester selects a specific real entity; results never cross actor/environment contexts; no “load everything” request is needed.
+    - Verification: component tests and API integration tests.
+    - Potential pitfalls: booking lists are actor-authenticated; do not mistakenly query them with the framework/admin identity.
 
   ### Task 2.3 — Replace the static action execution path with a validated action registry and executor
 

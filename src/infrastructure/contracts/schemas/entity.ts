@@ -1,15 +1,18 @@
 import { z } from "zod";
-import { StopTypeSchema, UserTripStatusSchema } from "./enums";
+import { UserTripStatusSchema } from "./enums";
 
 /**
  * `StopDto` — `GET /api/v1/stops` item.
  * `name` is a **flat string**, NOT a localized `{ en, ar }` object.
+ * `stopType` is a free-form string in the live backend (it returns localized
+ * display strings such as `"موقف حافلات"`), so it is not constrained to the
+ * `StopType` enum values.
  */
 export const StopDtoSchema = z.object({
   id: z.union([z.string(), z.number()]),
   name: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-  stopType: StopTypeSchema.optional().nullable(),
+  stopType: z.string().optional().nullable(),
   longitude: z.number().optional().nullable(),
   latitude: z.number().optional().nullable(),
   isActive: z.boolean().optional().nullable(),
