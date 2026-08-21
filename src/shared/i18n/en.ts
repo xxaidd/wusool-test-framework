@@ -343,6 +343,12 @@ export const en = {
     speedHint: "Constant-speed movement along the drawn route.",
     showHistoricalPaths: "Show history",
     hideHistoricalPaths: "Hide history",
+    confirmLocation: "Confirm location update",
+    locationPending: "Pending",
+    locationSent: "Sending…",
+    locationAccepted: "Location accepted by backend",
+    locationRejected: "Location rejected by backend",
+    locationVisualOnly: "Visual placement",
   },
   entities: {
     route: "Route",
@@ -355,6 +361,7 @@ export const en = {
   common: {
     cancel: "Cancel",
     close: "Close",
+    confirm: "Confirm",
     save: "Save",
     clear: "Clear",
     search: "Search",

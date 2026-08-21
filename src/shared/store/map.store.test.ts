@@ -11,6 +11,8 @@ describe("useMapStore", () => {
       speed: 400,
       showHistory: false,
       viewport: { center: { lat: 32.027, lng: 44.3887 }, zoom: 12 },
+      pendingLocation: null,
+      locationStatus: {},
     });
   });
 
@@ -127,6 +129,69 @@ describe("useMapStore", () => {
         center: { lat: 40.7128, lng: -74.006 },
         zoom: 15,
       });
+    });
+  });
+
+  describe("pending location", () => {
+    it("setPendingLocation stores coordinates and marks actor pending", () => {
+      useMapStore.getState().setPendingLocation("a1", 1, 2, 3, 4);
+      const s = useMapStore.getState();
+      expect(s.pendingLocation).toEqual({
+        actorId: "a1",
+        lat: 1,
+        lng: 2,
+        originalLat: 3,
+        originalLng: 4,
+      });
+      expect(s.locationStatus.a1).toBe("pending");
+    });
+
+    it("setPendingLocation preserves other actors' statuses", () => {
+      useMapStore.getState().setLocationStatus("a1", "accepted");
+      useMapStore.getState().setPendingLocation("a2", 1, 2, 3, 4);
+      const s = useMapStore.getState();
+      expect(s.locationStatus.a1).toBe("accepted");
+      expect(s.locationStatus.a2).toBe("pending");
+    });
+
+    it("confirmPendingLocation marks actor sent and returns the location", () => {
+      useMapStore.getState().setPendingLocation("a1", 1, 2, 3, 4);
+      const confirmed = useMapStore.getState().confirmPendingLocation();
+      expect(confirmed).toEqual({
+        actorId: "a1",
+        lat: 1,
+        lng: 2,
+        originalLat: 3,
+        originalLng: 4,
+      });
+      const s = useMapStore.getState();
+      expect(s.pendingLocation).toBeNull();
+      expect(s.locationStatus.a1).toBe("sent");
+    });
+
+    it("confirmPendingLocation without pending is a no-op", () => {
+      expect(useMapStore.getState().confirmPendingLocation()).toBeNull();
+    });
+
+    it("cancelPendingLocation reverts actor to visual placement", () => {
+      useMapStore.getState().setPendingLocation("a1", 1, 2, 3, 4);
+      useMapStore.getState().cancelPendingLocation();
+      const s = useMapStore.getState();
+      expect(s.pendingLocation).toBeNull();
+      expect(s.locationStatus.a1).toBe("visual");
+    });
+
+    it("setLocationStatus updates the actor's status", () => {
+      useMapStore.getState().setLocationStatus("a1", "rejected");
+      expect(useMapStore.getState().locationStatus.a1).toBe("rejected");
+    });
+
+    it("resetForEnvironment clears pending location and statuses", () => {
+      useMapStore.getState().setPendingLocation("a1", 1, 2, 3, 4);
+      useMapStore.getState().resetForEnvironment();
+      const s = useMapStore.getState();
+      expect(s.pendingLocation).toBeNull();
+      expect(s.locationStatus).toEqual({});
     });
   });
 

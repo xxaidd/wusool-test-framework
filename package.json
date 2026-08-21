@@ -21,6 +21,7 @@
     "audit:boundaries": "node scripts/audit-boundaries.mjs"
   },
   "dependencies": {
+    "@microsoft/signalr": "^10.0.11",
     "@types/leaflet": "^1.9.22",
     "axios": "^1.19.0",
     "leaflet": "^1.9.4",

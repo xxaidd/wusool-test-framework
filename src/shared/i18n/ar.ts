@@ -339,6 +339,12 @@ export const ar: Messages = {
     speedHint: "حركة بسرعة ثابتة على طول المسار المرسوم.",
     showHistoricalPaths: "عرض السجل",
     hideHistoricalPaths: "إخفاء السجل",
+    confirmLocation: "تأكيد تحديث الموقع",
+    locationPending: "قيد الانتظار",
+    locationSent: "جارٍ الإرسال…",
+    locationAccepted: "تم قبول الموقع من الخادم",
+    locationRejected: "تم رفض الموقع من الخادم",
+    locationVisualOnly: "وضع بصري",
   },
   entities: {
     route: "مسار",
@@ -351,6 +357,7 @@ export const ar: Messages = {
   common: {
     cancel: "إلغاء",
     close: "إغلاق",
+    confirm: "تأكيد",
     save: "حفظ",
     clear: "مسح",
     search: "بحث",
