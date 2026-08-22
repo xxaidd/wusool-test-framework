@@ -8,7 +8,7 @@ describe("useMapStore", () => {
       drawing: false,
       following: false,
       followActorId: null,
-      speed: 400,
+      speedKmh: 30,
       showHistory: false,
       viewport: { center: { lat: 32.027, lng: 44.3887 }, zoom: 12 },
       pendingLocation: null,
@@ -105,10 +105,10 @@ describe("useMapStore", () => {
     });
   });
 
-  describe("speed", () => {
-    it("sets speed", () => {
-      useMapStore.getState().setSpeed(800);
-      expect(useMapStore.getState().speed).toBe(800);
+  describe("speedKmh", () => {
+    it("sets speed in km/h", () => {
+      useMapStore.getState().setSpeedKmh(60);
+      expect(useMapStore.getState().speedKmh).toBe(60);
     });
   });
 
@@ -210,7 +210,7 @@ describe("useMapStore", () => {
       expect(s.following).toBe(false);
       expect(s.followActorId).toBeNull();
       expect(s.showHistory).toBe(false);
-      expect(s.speed).toBe(400); // default
+      expect(s.speedKmh).toBe(30); // default
       expect(s.viewport).toEqual({
         center: { lat: 32.027, lng: 44.3887 },
         zoom: 12,

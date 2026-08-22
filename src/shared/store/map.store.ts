@@ -27,7 +27,7 @@ interface MapState {
   drawing: boolean;
   following: boolean;
   followActorId: string | null;
-  speed: number;
+  speedKmh: number;
   showHistory: boolean;
   viewport: { center: LatLng; zoom: number };
   pendingLocation: PendingLocation | null;
@@ -41,7 +41,7 @@ interface MapState {
   cancelDrawing: () => void;
   startFollowing: (actorId: string) => void;
   stopFollowing: () => void;
-  setSpeed: (ms: number) => void;
+  setSpeedKmh: (kmh: number) => void;
   toggleHistory: () => void;
   setViewport: (center: LatLng, zoom: number) => void;
   setPendingLocation: (
@@ -62,7 +62,7 @@ const INITIAL_STATE = {
   drawing: false,
   following: false,
   followActorId: null as string | null,
-  speed: 400,
+  speedKmh: 30,
   showHistory: false,
   viewport: { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM },
   pendingLocation: null as PendingLocation | null,
@@ -101,7 +101,7 @@ export const useMapStore = create<MapState>()(
 
       stopFollowing: () => set({ following: false, followActorId: null }),
 
-      setSpeed: (speed) => set({ speed }),
+      setSpeedKmh: (speedKmh) => set({ speedKmh }),
 
       toggleHistory: () => set((s) => ({ showHistory: !s.showHistory })),
 

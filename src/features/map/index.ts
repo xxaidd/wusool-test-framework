@@ -6,14 +6,22 @@ export type {
   MapViewport,
 } from "./application/MapAdapter";
 export type {
-  RouteFollower,
-  RouteFollowerCallbacks,
+  MoveAlongRouteInput,
+  MovementEndOutcome,
+  MovementEvents,
+  MovementFailurePolicy,
+  MovementHandle,
+  MovementScheduler,
 } from "./application/movement";
 export {
-  createRouteFollower,
+  createRealScheduler,
+  DEFAULT_SEND_INTERVAL_MS,
   isMovable,
-  routeEnd,
-  stepAlongRoute,
+  startMoveActorAlongRoute,
+  UI_UPDATE_INTERVAL_MS,
 } from "./application/movement";
+export type { SendActorLocationInput } from "./application/sendActorLocation";
+export { sendActorLocation } from "./application/sendActorLocation";
+export * from "./domain/distance";
 export * from "./domain/map.types";
 export type { LeafletMapAdapter } from "./infrastructure/LeafletMapAdapter";

@@ -5,9 +5,12 @@ import { Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MapContainer, Polyline, TileLayer, useMap } from "react-leaflet";
 import { ActorType } from "@/features/actors/domain/actor.types";
-import type { RouteFollower } from "@/features/map/application/movement";
-import { createRouteFollower } from "@/features/map/application/movement";
-import type { LatLng } from "@/features/map/domain/map.types";
+import type { MovementHandle } from "@/features/map/application/movement";
+import {
+  isMovable,
+  startMoveActorAlongRoute,
+} from "@/features/map/application/movement";
+import { sendActorLocation } from "@/features/map/application/sendActorLocation";
 import { getSignalRLocationAdapter } from "@/features/map/infrastructure/signalrLocationAdapter";
 import { buildStaticPaths } from "@/features/sessions";
 import { SessionSource } from "@/features/sessions/domain/session.types";
@@ -51,7 +54,7 @@ export function MapCanvas() {
   const drawing = useMapStore((s) => s.drawing);
   const following = useMapStore((s) => s.following);
   const followActorId = useMapStore((s) => s.followActorId);
-  const speed = useMapStore((s) => s.speed);
+  const speedKmh = useMapStore((s) => s.speedKmh);
   const showHistory = useMapStore((s) => s.showHistory);
   const startFollowing = useMapStore((s) => s.startFollowing);
   const stopFollowing = useMapStore((s) => s.stopFollowing);
@@ -63,7 +66,7 @@ export function MapCanvas() {
   const setLocationStatus = useMapStore((s) => s.setLocationStatus);
 
   const mapRef = useRef<L.Map | null>(null);
-  const followerRef = useRef<RouteFollower | null>(null);
+  const movementRef = useRef<MovementHandle | null>(null);
   const workspaceRef = useRef(workspace);
   workspaceRef.current = workspace;
   const locationAdapterRef = useRef(getSignalRLocationAdapter());
@@ -75,8 +78,9 @@ export function MapCanvas() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset-on-env-change
   useEffect(() => {
-    resetForEnvironment();
+    movementRef.current?.cancel();
     locationAdapterRef.current.disconnect().catch(() => {});
+    resetForEnvironment();
   }, [envId]);
 
   const selected = workspace.find((a) => a.id === selectedActorId);
@@ -140,13 +144,18 @@ export function MapCanvas() {
 
     moveActor(pending.actorId, pending.lat, pending.lng);
 
-    const adapter = locationAdapterRef.current;
     const env = useEnvironmentStore.getState().env;
-    const result = await adapter.sendLocation(
-      pending.actorId,
-      pending.lat,
-      pending.lng,
-      { envId: env.id, baseUrl: env.custom ? env.baseUrl : undefined },
+    const result = await sendActorLocation(
+      {
+        actorId: pending.actorId,
+        lat: pending.lat,
+        lng: pending.lng,
+        envRef: {
+          envId: env.id,
+          baseUrl: env.custom ? env.baseUrl : undefined,
+        },
+      },
+      locationAdapterRef.current,
     );
 
     if (result.ok) {
@@ -191,47 +200,116 @@ export function MapCanvas() {
   };
 
   // Constant-speed automated movement along the drawn route, driven by the
-  // framework-free route follower so the engine stays out of the component.
+  // application-level movement engine (injected scheduler, interpolated by
+  // distance/time). The component only owns lifecycle wiring — no timer loops.
   useEffect(() => {
-    if (!following || !followActorId || route.length < 2) return;
-    const latlngs: LatLng[] = route.map((p) => ({ lat: p.lat, lng: p.lng }));
-    const follower = createRouteFollower(latlngs, speed, {
-      onStep: (pos) => {
-        moveActor(followActorId, pos.lat, pos.lng);
-      },
-      onComplete: (pos) => {
-        stopFollowing();
-        recorder.record({
-          source: SessionSource.Workflow,
-          actor: {
-            id: followActorId,
-            label:
-              workspaceRef.current.find((a) => a.id === followActorId)?.label ||
-              followActorId,
-          },
-          action: {
-            id: "map.follow",
-            label: t("map.followRoute"),
-            categoryId: "location",
-          },
-          summary: `${t("map.following")} (${route.length} pts)`,
-          status: "success",
-          position: { lat: pos.lat, lng: pos.lng },
-        });
-      },
-    });
-    followerRef.current = follower;
-    follower.start();
-    return () => {
-      follower.stop();
-      followerRef.current = null;
+    if (!following || !followActorId || !isMovable(route)) return;
+
+    const actor = workspaceRef.current.find((a) => a.id === followActorId);
+    const actorRef = {
+      id: followActorId,
+      label: actor?.label || followActorId,
+      ...(actor ? { type: actor.type } : {}),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const env = useEnvironmentStore.getState().env;
+    const envRef = {
+      envId: env.id,
+      baseUrl: env.custom ? env.baseUrl : undefined,
+    };
+    const routePoints = route.map((p) => ({ lat: p.lat, lng: p.lng }));
+
+    const handle = startMoveActorAlongRoute(
+      { route: routePoints, speedKmh },
+      {
+        // The engine emits onStarted only once its first tick processes, so
+        // an immediately-cancelled run (React StrictMode dev remount)
+        // records nothing.
+        onStarted: (pos) => {
+          recorder.record({
+            source: SessionSource.Workflow,
+            actor: actorRef,
+            action: {
+              id: "map.movement",
+              label: t("map.followRoute"),
+              categoryId: "location",
+            },
+            summary: `${t("map.movementStarted")} (${routePoints.length} pts · ${speedKmh} km/h)`,
+            status: "info",
+            position: pos,
+          });
+        },
+        onPosition: (pos) => {
+          moveActor(followActorId, pos.lat, pos.lng);
+        },
+        onSendCompleted: (pos, result) => {
+          recorder.record({
+            source: SessionSource.Workflow,
+            actor: actorRef,
+            action: {
+              id: "driver.sendLocation",
+              label: t("map.locationUpdateSent"),
+              categoryId: "location",
+            },
+            summary: result.ok
+              ? t("map.locationUpdateSent")
+              : `${t("map.locationRejected")}: ${result.error}`,
+            status: result.ok ? "success" : "failure",
+            position: pos,
+            ...(result.ok ? {} : { error: result.error }),
+          });
+        },
+        onEnded: (outcome) => {
+          stopFollowing();
+          if (movementRef.current === handle) movementRef.current = null;
+          recorder.record({
+            source: SessionSource.Workflow,
+            actor: actorRef,
+            action: {
+              id: "map.movement",
+              label: t("map.followRoute"),
+              categoryId: "location",
+            },
+            summary:
+              outcome.type === "completed"
+                ? `${t("map.movementCompleted")} (${routePoints.length} pts)`
+                : outcome.type === "cancelled"
+                  ? t("map.movementCancelled")
+                  : `${t("map.movementFailed")}: ${outcome.error}`,
+            status:
+              outcome.type === "completed"
+                ? "success"
+                : outcome.type === "cancelled"
+                  ? "info"
+                  : "failure",
+            position: outcome.position,
+            ...(outcome.type === "failed" ? { error: outcome.error } : {}),
+          });
+        },
+      },
+      {
+        sendLocation: (pos) =>
+          sendActorLocation(
+            {
+              actorId: followActorId,
+              lat: pos.lat,
+              lng: pos.lng,
+              envRef,
+            },
+            locationAdapterRef.current,
+          ),
+      },
+    );
+    movementRef.current = handle;
+
+    return () => {
+      handle.cancel();
+      if (movementRef.current === handle) movementRef.current = null;
+    };
   }, [
     following,
     followActorId,
     route,
-    speed,
+    speedKmh,
     recorder,
     moveActor,
     t,
@@ -319,19 +397,22 @@ export function MapCanvas() {
 
 function SpeedControl() {
   const { t } = useI18n();
-  const speed = useMapStore((s) => s.speed);
-  const setSpeed = useMapStore((s) => s.setSpeed);
+  const speedKmh = useMapStore((s) => s.speedKmh);
+  const setSpeedKmh = useMapStore((s) => s.setSpeedKmh);
 
   return (
-    <div className="absolute bottom-3 start-3 z-[500] flex items-center gap-2 rounded-xl border border-border bg-surface/95 px-3 py-2 text-xs text-ink-soft shadow-md">
+    <div
+      className="absolute bottom-3 start-3 z-[500] flex items-center gap-2 rounded-xl border border-border bg-surface/95 px-3 py-2 text-xs text-ink-soft shadow-md"
+      title={t("map.speedHint")}
+    >
       <span>{t("map.autoMove")}</span>
       <input
         type="number"
-        value={speed}
-        min={100}
-        max={5000}
-        step={100}
-        onChange={(e) => setSpeed(Number(e.target.value) || 400)}
+        value={speedKmh}
+        min={5}
+        max={120}
+        step={5}
+        onChange={(e) => setSpeedKmh(Number(e.target.value) || 30)}
         className="h-8 w-20 rounded-md border border-border bg-surface-variant px-2 text-sm text-ink"
         dir="ltr"
       />
